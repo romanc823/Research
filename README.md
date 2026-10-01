@@ -4,28 +4,37 @@ Phase A scaffold. Drop an anonymized packet, extract fields, score them against 
 
 This is a research desk for review, not a client portal. It does not e-file, does not talk to tax software, and does not price work.
 
-Roman: open the folder in Cursor, then run the static server below. The screen is fixture data moving through `extract → score → present`. Extend a floor by editing `js/score.js` and a fixture, not by adding a model.
+Roman: open this folder in Cursor **on your computer** and follow [Desktop open path](docs/OPEN.md). The screen is fixture data moving through `extract → score → present`. Extend a floor by editing `js/score.js` and a fixture, not by adding a model.
 
-## Open it in Cursor
+## Desktop open path
 
-1. Clone this repo and open the root in Cursor (`File → Open Folder`).
-2. In a terminal at the repo root, start the server:
+Chrome on the Desktop reaches a server only when that server is running on the Desktop. A cloud agent, Codespace, or VM that logged HTTP 200 for `http://127.0.0.1:8080` was answering on **that** machine. Start `npm start` in a terminal on your computer, then open the URL that terminal prints. The short checklist is [docs/OPEN.md](docs/OPEN.md).
 
-   ```bash
-   npm start
+1. Cursor → `File → Open Folder` → the repo root on your computer (the folder with `package.json`).
+2. `Terminal → New Terminal` so the shell is that root.
+3. Run `npm start` and leave the terminal open. It runs `tools/serve.mjs` (Node's built-in `http`, no installed packages) and binds `127.0.0.1`.
+4. Open the URL on the last line, in Cursor Simple Browser or Chrome on this same computer:
+
+   ```text
+   Tax research scaffold at http://127.0.0.1:8080
    ```
 
-   That runs `tools/serve.mjs` with Node's built-in `http` module. No packages are installed.
+   If the preferred port is busy, the process tries the next ports (8080–8090, or `PORT` through `PORT+10`) and prints the one that listened. Use that line. `file://` will not load the fixtures.
 
-3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
+### ERR_CONNECTION_REFUSED
 
-`file://` will not load the fixtures. ES modules and `fetch` both need the tiny server. Python works too, from the repo root:
+Nothing on this computer is accepting that host and port. The usual causes: `npm start` is not running here, the terminal printed a different port, or the process you saw was a cloud agent. Run `npm start` locally and open the printed URL.
+
+### EADDRINUSE
+
+The preferred port is taken, or the OS reserved it (a bind fails and Chrome still refuses the connection). `npm start` walks the next free ports and prints the URL that worked. If the whole span is busy, it exits with a one-line kill command for this OS and a `PORT=… npm start` example:
 
 ```bash
-python3 -m http.server 8080
+kill $(lsof -t -iTCP:8080 -sTCP:LISTEN)
+PORT=8091 npm start
 ```
 
-Cursor's Simple Browser or Live Preview can point at that same URL.
+Windows Command Prompt uses `for /f "tokens=5" %a in ('netstat -ano ^| findstr :8080 ^| findstr LISTENING') do taskkill /F /PID %a`, then `set PORT=8091&& npm start`. Details, PowerShell, and excluded-port ranges are in [docs/OPEN.md](docs/OPEN.md).
 
 ## On the screen
 
@@ -56,9 +65,10 @@ The drop zone accepts a local fixture JSON file only. It refuses PDFs, files wit
 | `fixtures/` | Anonymized packets and `manifest.json` |
 | `docs/TAXONOMY.md` | Locked floors |
 | `docs/PIPELINE.md` | Drop → Ingest → Extract → Score → Present, and one-pass vs second-eye |
+| `docs/OPEN.md` | Desktop open path, connection refused, port in use |
 | `tools/self-check.mjs` | Fixture expectations and floor boundaries |
 | `tools/build-fixtures.mjs` | Regenerates the JSON pack |
-| `tools/serve.mjs` | Static server |
+| `tools/serve.mjs` | Static server. Walks the next free ports and prints the URL. |
 
 ## Taxonomy
 
