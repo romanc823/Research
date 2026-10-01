@@ -1,0 +1,36 @@
+{
+  "id": "high-14-augusta",
+  "anon": true,
+  "label": "Schedule C — Form 1098 ownership document",
+  "group": "high",
+  "filer_ref": "FILER-111",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Form 1098"
+  ],
+  "scenario": "Schedule C plus Form 1098. Form 8829 is not in the packet and is not treated as ownership. No dependent child.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 88000,
+    "earned_income": 88000,
+    "retirement_deduction": 9000,
+    "qbi_fields": {
+      "qbi_income": 88000,
+      "tentative_deduction": 17600,
+      "deduction_taken": 17600,
+      "sstb": false
+    },
+    "home_ownership_doc": true,
+    "home_ownership_source": "1098",
+    "form_8829": false,
+    "child_dependent": false
+  },
+  "expected": {
+    "high": [
+      "14"
+    ],
+    "medium": []
+  }
+}

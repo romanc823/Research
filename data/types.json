@@ -1,0 +1,241 @@
+{
+  "pass_tags": {
+    "one-pass": "Math or document High. Target review about 3 minutes.",
+    "second-eye": "Judgment High. Target review about 5 minutes.",
+    "tray-skim": "Medium optional tray. Target skim about 2 minutes."
+  },
+  "types": [
+    {
+      "id": "1",
+      "name": "QBI",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§199A",
+      "trigger_summary": "Math gap between the tentative QBI deduction and the deduction taken. SSTB never raises confidence; it is a gate only."
+    },
+    {
+      "id": "2",
+      "name": "S-corp reasonable compensation",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "Reasonable compensation",
+      "trigger_summary": "S corporation distributions are present and officer W-2 is near zero."
+    },
+    {
+      "id": "3",
+      "name": "SEP / Solo",
+      "lane": "must-review",
+      "pass_tag": "one-pass",
+      "cite": "§408(k) / §401(a)",
+      "trigger_summary": "Self-employment income above the floor and retirement deduction exactly zero. A small deduction stays silent. No Solo versus SEP product talk."
+    },
+    {
+      "id": "3b",
+      "name": "Cash-balance",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§401(a)",
+      "trigger_summary": "Earned income above the hard floor and retirement deduction exactly zero. No product pick. This pass never emits High."
+    },
+    {
+      "id": "4",
+      "name": "2210 underpayment",
+      "lane": "must-review",
+      "pass_tag": "one-pass",
+      "cite": "§6654 · Form 2210",
+      "trigger_summary": "Form 2210 underpayment math only."
+    },
+    {
+      "id": "5",
+      "name": "Charitable bunching / DAF",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§170",
+      "trigger_summary": "Schedule A charitable or Form 8283, or standard deduction plus prior-year Schedule A charitable of at least $5,000. Never High."
+    },
+    {
+      "id": "5b",
+      "name": "QCD",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§408(d)(8)",
+      "trigger_summary": "Age at least 70½, an IRA or Form 1099-R, and a charitable pattern."
+    },
+    {
+      "id": "6",
+      "name": "Wash / loss room",
+      "lane": "must-review",
+      "pass_tag": "one-pass",
+      "cite": "§1091 · Form 8949",
+      "trigger_summary": "Wash sale on Form 8949 or Schedule D loss room. No harvest flag without lots."
+    },
+    {
+      "id": "7",
+      "name": "Passive 8582 absorb",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§469 · Form 8582",
+      "trigger_summary": "Form 8582 suspended loss and current-year passive income. Grouping is not a High without prior election documents."
+    },
+    {
+      "id": "7b",
+      "name": "Passive grouping",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "Treas. Reg. §1.469-4",
+      "trigger_summary": "Form 8582 and multiple activities. Medium only. This pass does not emit High."
+    },
+    {
+      "id": "8a",
+      "name": "Home office",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§280A(c)",
+      "trigger_summary": "Schedule C or S corporation plus Form 8829 or explicit home-office context. A complete Form 8829 with no gap stays silent. Ownership alone stays silent."
+    },
+    {
+      "id": "8b",
+      "name": "Auto mileage",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "Vehicle substantiation",
+      "trigger_summary": "Business activity plus a vehicle signal. W-2 unreimbursed expenses alone stay silent."
+    },
+    {
+      "id": "9",
+      "name": "§179 / bonus",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§179 · §168(k)",
+      "trigger_summary": "Material additions, little §179 or bonus taken, and taxable income that absorbs. Thin taxable income stays silent."
+    },
+    {
+      "id": "11",
+      "name": "HSA",
+      "lane": "must-review",
+      "pass_tag": "one-pass",
+      "cite": "§223 · Form 8889",
+      "trigger_summary": "W-2 and Form 8889 mismatch."
+    },
+    {
+      "id": "12",
+      "name": "Dependents / education",
+      "lane": "must-review",
+      "pass_tag": "one-pass",
+      "cite": "§24 · §25A · Form 1098-T",
+      "trigger_summary": "CTC or ODC gap is in scope. Education is High only when Form 1098-T is in the packet."
+    },
+    {
+      "id": "13",
+      "name": "Cost segregation",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "Cost segregation — ROI is a human gate",
+      "trigger_summary": "Depreciable building basis (any amount), placed-in-service or major remodel within the last three tax years, and no prior cost-segregation study in the packet."
+    },
+    {
+      "id": "14",
+      "name": "Augusta",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§280A(g)",
+      "trigger_summary": "Schedule C or S corporation and a home-ownership document (Form 1098, Schedule A mortgage, or deed). Form 8829 is never ownership. K-1 alone is out."
+    },
+    {
+      "id": "15",
+      "name": "Hire kids",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "Child wages",
+      "trigger_summary": "Schedule C or S corporation and a dependent child or grandchild, or a labeled child, son, or daughter. Age is optional enrichment."
+    },
+    {
+      "id": "16",
+      "name": "Cash drag / overpay",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "Estimated tax / refund",
+      "trigger_summary": "Large refund or estimates well above tax. Underpayment stays on type 4."
+    },
+    {
+      "id": "17",
+      "name": "Multi-state",
+      "lane": "optional-tray",
+      "pass_tag": "one-pass",
+      "cite": "Multi-state residency",
+      "trigger_summary": "Multi-state W-2 or K-1, or resident state differs from work state. High only when state returns in the packet show a mismatch; otherwise Medium."
+    },
+    {
+      "id": "18",
+      "name": "REP",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§469(c)(7)",
+      "trigger_summary": "Hours log or context at least 750 and Schedule E real-estate losses. No hours stays silent, with no Medium fallback."
+    },
+    {
+      "id": "19",
+      "name": "SEHI",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§162(l)",
+      "trigger_summary": "Schedule C or S corporation and self-employed health insurance blank or under the premiums."
+    },
+    {
+      "id": "20",
+      "name": "Dependent care / 2441",
+      "lane": "optional-tray",
+      "pass_tag": "one-pass",
+      "cite": "§21 · Form 2441",
+      "trigger_summary": "Children plus care documents or an FSA. High when Form 2441 is incomplete against those documents; otherwise Medium."
+    },
+    {
+      "id": "21",
+      "name": "Energy / 5695",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§25C / §25D · Form 5695",
+      "trigger_summary": "Form 5695 or residential energy documents in the packet."
+    },
+    {
+      "id": "22",
+      "name": "R&D",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§41 · Form 6765",
+      "trigger_summary": "Form 6765 or an R&D study in the packet only. A technology Schedule C plus wages stays silent."
+    },
+    {
+      "id": "23",
+      "name": "NUA",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§402(e)(4)",
+      "trigger_summary": "Form 1099-R employer plan and a company-stock signal, both present."
+    },
+    {
+      "id": "24",
+      "name": "Roth conversion room",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§408A",
+      "trigger_summary": "Traditional IRA or 401(k) and a low taxable-income year signal."
+    },
+    {
+      "id": "25",
+      "name": "QSBS §1202",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§1202",
+      "trigger_summary": "C corporation stock disposal and QSBS or a five-year note in the documents or explicit context. Entity vibes stay silent."
+    },
+    {
+      "id": "26",
+      "name": "1031 / installment",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§1031 · §453",
+      "trigger_summary": "Form 6252 or Form 8824, or a large Schedule D real-estate gain with neither form."
+    }
+  ]
+}

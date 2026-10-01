@@ -1,0 +1,25 @@
+{
+  "id": "high-06-wash-loss-room",
+  "anon": true,
+  "label": "Schedule D — wash sale and loss room",
+  "group": "high",
+  "filer_ref": "FILER-105",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule D",
+    "Form 8949"
+  ],
+  "scenario": "Form 8949 marks a wash sale and Schedule D still has loss room. Lot detail is in the packet, so this is not a harvest-without-lots case.",
+  "fields": {
+    "wash_8949": true,
+    "sch_d_loss_room": true,
+    "lots_missing": false
+  },
+  "expected": {
+    "high": [
+      "6"
+    ],
+    "medium": []
+  }
+}

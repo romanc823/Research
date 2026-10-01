@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "note": "Anonymized synthetic packets only. No live client data, SSNs, names, or EINs.",
+  "fixtures": [
+    {
+      "id": "high-01-qbi-math-gap",
+      "file": "high-01-qbi-math-gap.json",
+      "group": "high",
+      "label": "Schedule C — QBI math gap, SSTB gate"
+    },
+    {
+      "id": "high-02-scorp-near-zero-w2",
+      "file": "high-02-scorp-near-zero-w2.json",
+      "group": "high",
+      "label": "S corporation — distributions, officer W-2 at zero"
+    },
+    {
+      "id": "high-03-sep-zero-retirement",
+      "file": "high-03-sep-zero-retirement.json",
+      "group": "high",
+      "label": "Schedule C — SE above the floor, retirement deduction zero"
+    },
+    {
+      "id": "high-04-2210-underpayment",
+      "file": "high-04-2210-underpayment.json",
+      "group": "high",
+      "label": "Wage packet — Form 2210 underpayment math"
+    },
+    {
+      "id": "high-06-wash-loss-room",
+      "file": "high-06-wash-loss-room.json",
+      "group": "high",
+      "label": "Schedule D — wash sale and loss room"
+    },
+    {
+      "id": "high-07-8582-absorb",
+      "file": "high-07-8582-absorb.json",
+      "group": "high",
+      "label": "Schedule E — suspended loss and current-year passive income"
+    },
+    {
+      "id": "high-09-section-179",
+      "file": "high-09-section-179.json",
+      "group": "high",
+      "label": "Schedule C — material additions, little §179, income absorbs"
+    },
+    {
+      "id": "high-11-hsa-mismatch",
+      "file": "high-11-hsa-mismatch.json",
+      "group": "high",
+      "label": "W-2 and Form 8889 do not match"
+    },
+    {
+      "id": "high-12-ctc-and-1098t",
+      "file": "high-12-ctc-and-1098t.json",
+      "group": "high",
+      "label": "Dependents — CTC gap and Form 1098-T in the packet"
+    },
+    {
+      "id": "high-13-cost-seg",
+      "file": "high-13-cost-seg.json",
+      "group": "high",
+      "label": "Rental building — basis, recent remodel, no prior study"
+    },
+    {
+      "id": "high-14-augusta",
+      "file": "high-14-augusta.json",
+      "group": "high",
+      "label": "Schedule C — Form 1098 ownership document"
+    },
+    {
+      "id": "high-15-hire-kids",
+      "file": "high-15-hire-kids.json",
+      "group": "high",
+      "label": "Schedule C — dependent daughter on the return"
+    },
+    {
+      "id": "high-17-20-state-and-2441",
+      "file": "high-17-20-state-and-2441.json",
+      "group": "high",
+      "label": "W-2 — state-return mismatch and incomplete Form 2441"
+    },
+    {
+      "id": "high-18-rep-hours",
+      "file": "high-18-rep-hours.json",
+      "group": "high",
+      "label": "Schedule E — hours log at 820 and real-estate losses"
+    },
+    {
+      "id": "silent-01-sstb-no-gap",
+      "file": "silent-01-sstb-no-gap.json",
+      "group": "silent",
+      "label": "Silent twin — SSTB, QBI deduction already taken"
+    },
+    {
+      "id": "silent-03-09-little-deduction-thin-ti",
+      "file": "silent-03-09-little-deduction-thin-ti.json",
+      "group": "silent",
+      "label": "Silent twin — small retirement deduction, thin taxable income, tech wages"
+    },
+    {
+      "id": "silent-12-14-edu-and-augusta-kills",
+      "file": "silent-12-14-edu-and-augusta-kills.json",
+      "group": "silent",
+      "label": "Silent twin — K-1 only, Form 8829, education without 1098-T"
+    },
+    {
+      "id": "silent-02-06-13-18-near-misses",
+      "file": "silent-02-06-13-18-near-misses.json",
+      "group": "silent",
+      "label": "Silent twin — officer paid, missing lots, prior study, no hours"
+    },
+    {
+      "id": "medium-retiree-tray",
+      "file": "medium-retiree-tray.json",
+      "group": "medium",
+      "label": "Composite tray — charity, QCD, refund, care, NUA, Roth, QSBS, 1031 gap"
+    },
+    {
+      "id": "medium-operator-tray",
+      "file": "medium-operator-tray.json",
+      "group": "medium",
+      "label": "Composite tray — cash-balance, office, auto, states, grouping, SEHI, energy, R&D"
+    }
+  ]
+}

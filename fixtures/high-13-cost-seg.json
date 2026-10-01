@@ -1,0 +1,27 @@
+{
+  "id": "high-13-cost-seg",
+  "anon": true,
+  "label": "Rental building — basis, recent remodel, no prior study",
+  "group": "high",
+  "filer_ref": "FILER-110",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule E",
+    "Form 4562"
+  ],
+  "scenario": "Depreciable building basis is present. A major remodel year is inside the last three tax years. The packet has no prior cost-segregation study. ROI is not an input.",
+  "fields": {
+    "building_basis": 640000,
+    "pis_or_remodel_year": 2023,
+    "prior_cost_seg": false,
+    "sch_e_re_loss": false,
+    "hours_log_rep": null
+  },
+  "expected": {
+    "high": [
+      "13"
+    ],
+    "medium": []
+  }
+}

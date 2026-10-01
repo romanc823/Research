@@ -1,0 +1,47 @@
+{
+  "id": "silent-02-06-13-18-near-misses",
+  "anon": true,
+  "label": "Silent twin — officer paid, missing lots, prior study, no hours",
+  "group": "silent",
+  "filer_ref": "FILER-118",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form 1120-S",
+    "Schedule D",
+    "Schedule E",
+    "Form 4562",
+    "Form 8582"
+  ],
+  "scenario": "Officer W-2 is well above near-zero, with distributions present. Schedule D has a gain and the lots are missing, with no wash sale and no loss room. Building basis and a recent remodel are present, and a prior cost-segregation study is already in the packet. Schedule E has real-estate losses and no hours log. Form 8582 is suspended with no current-year passive income and a single activity.",
+  "fields": {
+    "s_corp": true,
+    "officer_w2": 88000,
+    "distributions": 45000,
+    "se_income": 0,
+    "earned_income": 88000,
+    "retirement_deduction": 12000,
+    "qbi_fields": {
+      "qbi_income": 100000,
+      "tentative_deduction": 20000,
+      "deduction_taken": 20000,
+      "sstb": false
+    },
+    "lots_missing": true,
+    "wash_8949": false,
+    "sch_d_loss_room": false,
+    "building_basis": 510000,
+    "pis_or_remodel_year": 2024,
+    "prior_cost_seg": true,
+    "sch_e_re_loss": true,
+    "hours_log_rep": null,
+    "form_8582_suspended": true,
+    "cy_passive_income": false,
+    "multiple_passive_activities": false,
+    "home_ownership_doc": false
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

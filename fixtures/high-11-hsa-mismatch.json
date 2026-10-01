@@ -1,0 +1,25 @@
+{
+  "id": "high-11-hsa-mismatch",
+  "anon": true,
+  "label": "W-2 and Form 8889 do not match",
+  "group": "high",
+  "filer_ref": "FILER-108",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form W-2",
+    "Form 8889"
+  ],
+  "scenario": "The HSA box on Form W-2 and Form 8889 disagree. The extract stores the mismatch as a field, not a story.",
+  "fields": {
+    "hsa_w2_8889_mismatch": true,
+    "earned_income": 74000,
+    "retirement_deduction": 3000
+  },
+  "expected": {
+    "high": [
+      "11"
+    ],
+    "medium": []
+  }
+}

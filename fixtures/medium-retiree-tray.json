@@ -1,0 +1,67 @@
+{
+  "id": "medium-retiree-tray",
+  "anon": true,
+  "label": "Composite tray — charity, QCD, refund, care, NUA, Roth, QSBS, 1031 gap",
+  "group": "medium",
+  "filer_ref": "FILER-119",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form 1099-R",
+    "Schedule A (prior year)",
+    "Schedule D",
+    "Care statement"
+  ],
+  "scenario": "Synthetic tray packet, not a client file. Standard deduction this year, prior-year Schedule A charitable at the two-year marker, age 72 with an IRA and a charitable pattern. Refund is large. A dependent grandchild has care documents and Form 2441 is not incomplete. Employer-plan Form 1099-R includes a company-stock signal. Traditional IRA in a low-income year. C corporation shares were sold with an explicit five-year QSBS note. Schedule D has a large real-estate gain and neither Form 6252 nor Form 8824. A Form 1098 is present and there is no Schedule C or S corporation. A vehicle note is unreimbursed employee expense only.",
+  "fields": {
+    "age": 72,
+    "ira_or_1099r": true,
+    "standard_deduction": true,
+    "charitable_sch_a": false,
+    "form_8283": false,
+    "prior_year_sch_a_charitable": 6400,
+    "charitable_pattern": true,
+    "large_refund": 15200,
+    "estimates_paid": 2000,
+    "total_tax": 4100,
+    "trad_ira_or_401k": true,
+    "low_ti_year": true,
+    "nua_employer_plan_1099r": true,
+    "nua_company_stock": true,
+    "qsbs_c_corp_disposal": true,
+    "qsbs_five_year_or_explicit": true,
+    "entity_vibe_only": false,
+    "form_6252": false,
+    "form_8824": false,
+    "large_re_gain_no_1031": true,
+    "dependents_on_return": true,
+    "child_dependent": true,
+    "dependent_relationship": "grandchild",
+    "dependent_ages": [
+      8
+    ],
+    "care_docs_or_fsa": true,
+    "form_2441_gap": false,
+    "ctc_odc_gap": false,
+    "edu_credit_gap": false,
+    "home_ownership_doc": true,
+    "home_ownership_source": "1098",
+    "w2_unreimbursed_only": true,
+    "vehicle_signal": true,
+    "earned_income": 28000,
+    "retirement_deduction": 0
+  },
+  "expected": {
+    "high": [],
+    "medium": [
+      "5",
+      "5b",
+      "16",
+      "20",
+      "23",
+      "24",
+      "25",
+      "26"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "high-03-sep-zero-retirement",
+  "anon": true,
+  "label": "Schedule C — SE above the floor, retirement deduction zero",
+  "group": "high",
+  "filer_ref": "FILER-103",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Schedule SE",
+    "Schedule 1"
+  ],
+  "scenario": "Schedule C net income is above the SEP/Solo floor and the retirement deduction line is exactly zero. Earned income stays under the cash-balance floor. QBI deduction taken matches the tentative figure.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 110000,
+    "earned_income": 110000,
+    "retirement_deduction": 0,
+    "qbi_fields": {
+      "qbi_income": 110000,
+      "tentative_deduction": 22000,
+      "deduction_taken": 22000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [
+      "3"
+    ],
+    "medium": []
+  }
+}

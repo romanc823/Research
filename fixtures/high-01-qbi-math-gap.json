@@ -1,0 +1,32 @@
+{
+  "id": "high-01-qbi-math-gap",
+  "anon": true,
+  "label": "Schedule C — QBI math gap, SSTB gate",
+  "group": "high",
+  "filer_ref": "FILER-101",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Form 8995"
+  ],
+  "scenario": "Consulting Schedule C. Tentative QBI deduction is on the worksheet and the deduction taken is zero. SSTB is true and is only a gate; it does not create or block the math flag. Retirement deduction is already present, so SEP/Solo stays quiet.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 96000,
+    "earned_income": 96000,
+    "retirement_deduction": 7000,
+    "qbi_fields": {
+      "qbi_income": 96000,
+      "tentative_deduction": 19200,
+      "deduction_taken": 0,
+      "sstb": true
+    }
+  },
+  "expected": {
+    "high": [
+      "1"
+    ],
+    "medium": []
+  }
+}

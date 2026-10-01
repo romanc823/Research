@@ -1,0 +1,28 @@
+{
+  "id": "high-04-2210-underpayment",
+  "anon": true,
+  "label": "Wage packet — Form 2210 underpayment math",
+  "group": "high",
+  "filer_ref": "FILER-104",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form W-2",
+    "Form 2210"
+  ],
+  "scenario": "Form 2210 in the packet shows underpayment math. The refund is small and estimates are below the tax, so cash-drag stays quiet. No balance-due inference is used.",
+  "fields": {
+    "form_2210_underpay": true,
+    "large_refund": 0,
+    "estimates_paid": 1500,
+    "total_tax": 11000,
+    "earned_income": 86000,
+    "retirement_deduction": 4000
+  },
+  "expected": {
+    "high": [
+      "4"
+    ],
+    "medium": []
+  }
+}

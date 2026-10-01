@@ -1,0 +1,297 @@
+/**
+ * Present layer. Fixed strings only — no model prose.
+ * Order for ordinary cards: signal → docs → gate → next.
+ * Types 14 and 15 use the locked hold-for-planner lines and nothing else.
+ * Talk bans apply to every string this module returns.
+ */
+
+export const FIXED_COPY = {
+  14: "Augusta possible — hold for planner.",
+  15: "Hire-kids possible — hold for planner.",
+};
+
+const BANNED = [
+  { re: /you should/i, label: "you should" },
+  { re: /qualify for/i, label: "qualify for" },
+  { re: /guaranteed/i, label: "guaranteed" },
+  { re: /\bbest strategy\b/i, label: "best strategy" },
+  { re: /save\s*\$/i, label: "save $" },
+  { re: /\$\s?\d/, label: "dollar amount" },
+  { re: /will save/i, label: "will save" },
+  { re: /tax savings/i, label: "tax savings" },
+  { re: /you(?:'ll| will)\b/i, label: "you will" },
+];
+
+export function findTalkBan(copy) {
+  if (!copy) return null;
+  for (const rule of BANNED) {
+    if (rule.re.test(copy)) return rule.label;
+  }
+  return null;
+}
+
+function line(signal, docs, gate, next) {
+  return `Signal: ${signal} Docs: ${docs} Gate: ${gate} Next: ${next}`;
+}
+
+const TEMPLATES = {
+  1(_hit, fields) {
+    const sstb = fields.qbi_fields && fields.qbi_fields.sstb === true;
+    const gate = sstb
+      ? "SSTB status is a planner gate and does not raise confidence."
+      : "SSTB was not indicated. If it were, it would be a planner gate only and would not raise confidence.";
+    return line(
+      "the tentative QBI deduction is above the deduction taken on the return.",
+      "Form 8995 or Form 8995-A, with Schedule C, Schedule E, or K-1 as applicable.",
+      gate,
+      "hold for planner review.",
+    );
+  },
+  2() {
+    return line(
+      "S corporation distributions are present and officer W-2 wages are near zero.",
+      "Form 1120-S officer wages and the distribution lines.",
+      "reasonable-compensation judgment stays with the planner.",
+      "hold for planner review.",
+    );
+  },
+  3() {
+    return line(
+      "self-employment income is above the research floor and the retirement deduction is zero.",
+      "Schedule SE, Schedule 1, and the business return.",
+      "no retirement-plan product is selected in this pass.",
+      "hold for planner review.",
+    );
+  },
+  "3b"() {
+    return line(
+      "earned income is above the cash-balance research floor and the retirement deduction is zero.",
+      "the earned-income lines and Schedule 1.",
+      "no plan product is selected, and this pass keeps the item on the optional tray.",
+      "optional tray for planner review.",
+    );
+  },
+  4() {
+    return line(
+      "Form 2210 underpayment math is in the packet.",
+      "Form 2210.",
+      "the flag is underpayment math only.",
+      "hold for planner review.",
+    );
+  },
+  5() {
+    return line(
+      "Schedule A charitable contributions, Form 8283, or a standard deduction with prior-year Schedule A charitable at the two-year marker.",
+      "Schedule A, Form 8283, or the prior-year Schedule A charitable line.",
+      "this tray item is never a must-review flag.",
+      "optional tray for planner review.",
+    );
+  },
+  "5b"() {
+    return line(
+      "the filer is at least age 70 and a half, an IRA or Form 1099-R is in the packet, and a charitable pattern is present.",
+      "Form 1099-R or IRA records, and the charitable lines.",
+      "age, the account, and a charitable pattern are all required.",
+      "optional tray for planner review.",
+    );
+  },
+  6() {
+    return line(
+      "a wash sale is marked on Form 8949, or Schedule D shows loss room.",
+      "Form 8949 and Schedule D.",
+      "a gain with missing lots is not treated as a harvest.",
+      "hold for planner review.",
+    );
+  },
+  7() {
+    return line(
+      "Form 8582 shows a suspended passive loss and the current year has passive income.",
+      "Form 8582 and Schedule E.",
+      "activity grouping is not a must-review flag without prior election documents.",
+      "hold for planner review.",
+    );
+  },
+  "7b"() {
+    return line(
+      "Form 8582 is present with more than one passive activity.",
+      "the Form 8582 activity list.",
+      "prior election documents do not raise this above the optional tray in this pass.",
+      "optional tray for planner review.",
+    );
+  },
+  "8a"() {
+    return line(
+      "a Schedule C or S corporation has Form 8829 or explicit home-office context, and Form 8829 is not a complete no-gap filing.",
+      "Form 8829 or the home-office note in the packet.",
+      "a complete Form 8829 with no gap stays silent, and ownership alone stays silent.",
+      "optional tray for planner review.",
+    );
+  },
+  "8b"() {
+    return line(
+      "the packet has a business activity and a vehicle signal.",
+      "Form 4562 vehicle, Schedule C car, or mileage context.",
+      "W-2 unreimbursed expenses alone stay silent.",
+      "optional tray for planner review.",
+    );
+  },
+  9() {
+    return line(
+      "material asset additions have little section 179 or bonus depreciation, and taxable income can absorb more.",
+      "Form 4562 and the taxable-income line.",
+      "thin taxable income stays silent.",
+      "hold for planner review.",
+    );
+  },
+  11() {
+    return line(
+      "the HSA amount on Form W-2 does not match Form 8889.",
+      "Form W-2 and Form 8889.",
+      "the flag is the mismatch itself.",
+      "hold for planner review.",
+    );
+  },
+  12(_hit, fields) {
+    const edu = fields.edu_credit_gap === true && fields.form_1098t === true;
+    const ctc = fields.ctc_odc_gap === true;
+    const signal = ctc && edu
+      ? "a dependent-credit gap is on the return, and education items are paired with Form 1098-T."
+      : edu
+        ? "education items are paired with Form 1098-T in the packet."
+        : "a child tax credit or other dependent credit gap is on the return.";
+    return line(
+      signal,
+      "Schedule 8812 and, where education items are involved, Form 1098-T.",
+      "education items without Form 1098-T in the packet stay silent.",
+      "hold for planner review.",
+    );
+  },
+  13() {
+    return line(
+      "depreciable building basis is present, placed-in-service or a major remodel falls in the last three tax years, and no prior cost-segregation study is in the packet.",
+      "Form 4562 and the acquisition or remodel record.",
+      "return on investment is a human gate, not a score input.",
+      "hold for planner review.",
+    );
+  },
+  16() {
+    return line(
+      "the refund is large, or estimated tax payments sit well above the tax on the return.",
+      "the Form 1040 refund line and estimated-tax payments.",
+      "underpayment math stays on the Form 2210 flag and is not repeated here.",
+      "optional tray for planner review.",
+    );
+  },
+  17(hit) {
+    if (hit.band === "High") {
+      return line(
+        "state returns in the packet do not match the residency or work pattern.",
+        "the state returns plus W-2 or K-1 state boxes.",
+        "a mismatch on the state returns is what makes this a must-review item.",
+        "hold for planner review.",
+      );
+    }
+    return line(
+      "a multi-state W-2 or K-1, or a difference between resident state and work state, is in the packet.",
+      "W-2 or K-1 state boxes.",
+      "without state returns showing a mismatch, this stays on the optional tray.",
+      "optional tray for planner review.",
+    );
+  },
+  18() {
+    return line(
+      "an hours log or hours context is at or above 750 and Schedule E shows real-estate losses.",
+      "the hours log and Schedule E.",
+      "missing hours stay silent, with no optional-tray fallback.",
+      "hold for planner review.",
+    );
+  },
+  19() {
+    return line(
+      "self-employed health insurance on a Schedule C or S corporation is blank or below premiums in the packet.",
+      "the SEHI line and premium records.",
+      "the comparison is blank-or-under versus premiums.",
+      "optional tray for planner review.",
+    );
+  },
+  20(hit) {
+    if (hit.band === "High") {
+      return line(
+        "Form 2441 is incomplete against dependent-care documents in the packet.",
+        "Form 2441 and care statements or FSA records.",
+        "incompleteness against those documents is the must-review trigger.",
+        "hold for planner review.",
+      );
+    }
+    return line(
+      "children are on the return and care documents or an FSA are in the packet.",
+      "care statements or FSA records.",
+      "Form 2441 is not incomplete against those documents, so this stays on the optional tray.",
+      "optional tray for planner review.",
+    );
+  },
+  21() {
+    return line(
+      "Form 5695 or residential energy documents are in the packet.",
+      "Form 5695 or the energy invoices.",
+      "presence of the form or the invoices is the tray signal.",
+      "optional tray for planner review.",
+    );
+  },
+  22() {
+    return line(
+      "Form 6765 or an R&D study is in the packet.",
+      "Form 6765 or the study.",
+      "a technology Schedule C with wages, and neither the form nor a study, stays silent.",
+      "optional tray for planner review.",
+    );
+  },
+  23() {
+    return line(
+      "a Form 1099-R for an employer plan and a company-stock signal are both present.",
+      "Form 1099-R and the company-stock note.",
+      "either input alone stays silent.",
+      "optional tray for planner review.",
+    );
+  },
+  24() {
+    return line(
+      "a traditional IRA or 401(k) is present in a year marked as low taxable income.",
+      "IRA or 401(k) records and the taxable-income line.",
+      "both the account and the low-income-year signal are required.",
+      "optional tray for planner review.",
+    );
+  },
+  25() {
+    return line(
+      "C corporation stock was disposed of, and a QSBS or five-year holding note is in the documents or the explicit context.",
+      "the brokerage statement and the QSBS or holding-period note.",
+      "an entity label alone stays silent.",
+      "optional tray for planner review.",
+    );
+  },
+  26() {
+    return line(
+      "Form 6252 or Form 8824 is in the packet, or Schedule D shows a large real-estate gain with neither form.",
+      "Form 6252, Form 8824, or Schedule D.",
+      "the flag is the form, or the gain without those forms.",
+      "optional tray for planner review.",
+    );
+  },
+};
+
+export function presentCopy(hit, fields) {
+  if (!hit || hit.band === "silent") return null;
+  if (hit.typeId === "14") return FIXED_COPY[14];
+  if (hit.typeId === "15") return FIXED_COPY[15];
+  const template = TEMPLATES[hit.typeId];
+  if (!template) {
+    throw new Error(`No present template for type ${hit.typeId}`);
+  }
+  const copy = template(hit, fields || {});
+  const ban = findTalkBan(copy);
+  if (ban) {
+    throw new Error(`Talk ban "${ban}" in type ${hit.typeId}`);
+  }
+  return copy;
+}

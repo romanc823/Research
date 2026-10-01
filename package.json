@@ -1,0 +1,10 @@
+{
+  "name": "intentional-accounting-tax-research",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "check": "node tools/self-check.mjs",
+    "fixtures": "node tools/build-fixtures.mjs"
+  }
+}

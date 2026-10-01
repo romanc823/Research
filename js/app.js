@@ -1,0 +1,353 @@
+import { evaluateFixture, matchExpectation } from "./evaluate.js";
+import { parseFixtureText } from "./intake.js";
+
+const PASS_HINT = {
+  "one-pass": "One-pass · about 3 min",
+  "second-eye": "Second-eye · about 5 min",
+  "tray-skim": "Tray skim · about 2 min",
+};
+
+const GROUP_LABEL = {
+  high: "High hits",
+  silent: "Silent twins",
+  medium: "Medium tray",
+  dropped: "Dropped JSON",
+};
+
+const state = {
+  manifest: [],
+  typesById: {},
+  selectedId: null,
+  tab: "high",
+  detailKey: null,
+  packets: new Map(),
+  checks: new Map(),
+};
+
+const rail = document.querySelector("#rail");
+const stage = document.querySelector("#stage");
+const checkSlot = document.querySelector("#check-status");
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[ch]));
+}
+
+function showValue(value) {
+  if (value == null || value === "") return "—";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
+async function loadJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not load ${url}`);
+  return response.json();
+}
+
+function typesMap(list) {
+  const map = {};
+  for (const type of list) map[type.id] = type;
+  return map;
+}
+
+function renderRail() {
+  const groups = ["high", "silent", "medium", "dropped"];
+  const options = state.manifest.map((item) => {
+    const selected = item.id === state.selectedId ? " selected" : "";
+    return `<option value="${esc(item.id)}"${selected}>${esc(item.label)}</option>`;
+  }).join("");
+
+  const lists = groups.map((group) => {
+    const items = state.manifest.filter((item) => item.group === group);
+    if (!items.length) return "";
+    const buttons = items.map((item) => {
+      const active = item.id === state.selectedId ? " is-active" : "";
+      const check = state.checks.get(item.id);
+      const mark = check ? (check.ok ? "ok" : "bad") : "pending";
+      return `<button type="button" class="fixture${active}" data-fixture="${esc(item.id)}">
+        <span class="mark mark-${mark}" aria-hidden="true"></span>
+        <span>
+          <span class="fixture-label">${esc(item.label)}</span>
+          <span class="fixture-id">${esc(item.id)}</span>
+        </span>
+      </button>`;
+    }).join("");
+    return `<section class="group"><h2>${esc(GROUP_LABEL[group])}</h2>${buttons}</section>`;
+  }).join("");
+
+  rail.innerHTML = `
+    <label class="picker-label" for="fixture-select">Fixture</label>
+    <select id="fixture-select">${options}</select>
+    <div class="drop" id="drop-zone">
+      <p><strong>Drop a fixture JSON</strong></p>
+      <p>Anonymized schema only. PDFs and live returns are ignored.</p>
+      <label class="file-btn">
+        Choose JSON
+        <input id="file-input" type="file" accept="application/json,.json" />
+      </label>
+      <p id="drop-error" class="drop-error" hidden></p>
+    </div>
+    <div class="fixture-list">${lists}</div>
+  `;
+}
+
+function renderEvidence(evidence) {
+  const rows = Object.entries(evidence || {}).map(([key, value]) => `
+    <div>
+      <dt>${esc(key)}</dt>
+      <dd>${esc(showValue(value))}</dd>
+    </div>
+  `).join("");
+  return `<dl class="fields">${rows}</dl>`;
+}
+
+function renderStage() {
+  const packet = state.packets.get(state.selectedId);
+  if (!packet) {
+    stage.innerHTML = `<p class="empty">Loading packet…</p>`;
+    return;
+  }
+  const { fixture, evaluation } = packet;
+  const cards = evaluation.cards;
+  const visible = cards.filter((card) => (state.tab === "high" ? card.band === "High" : card.band === "Medium"));
+  const highCount = cards.filter((card) => card.band === "High").length;
+  const mediumCount = cards.filter((card) => card.band === "Medium").length;
+  const silent = evaluation.scored.filter((item) => item.band === "silent");
+  const detail = visible.find((card) => `${card.band}:${card.typeId}` === state.detailKey) || visible[0] || null;
+  const check = state.checks.get(fixture.id);
+  const forms = (fixture.forms_in_packet || []).join(" · ");
+
+  const cardHtml = visible.length
+    ? visible.map((card) => {
+      const key = `${card.band}:${card.typeId}`;
+      const active = detail && key === `${detail.band}:${detail.typeId}` ? " is-active" : "";
+      return `<button type="button" class="card band-${card.band === "High" ? "high" : "medium"}${active}" data-card="${esc(key)}">
+        <span class="card-kicker">Type ${esc(card.typeId)} · ${esc(card.band)}</span>
+        <span class="card-name">${esc(card.name)}</span>
+        <span class="card-pass">${esc(PASS_HINT[card.passTag] || card.passTag)}</span>
+        <span class="card-copy">${esc(card.copy || card.error || "")}</span>
+      </button>`;
+    }).join("")
+    : `<p class="empty-lane">${state.tab === "high"
+      ? "No must-review flags on this packet."
+      : "Nothing on the optional tray for this packet."} Silent checks stay off the card list.</p>`;
+
+  const detailHtml = detail ? `
+    <article class="detail">
+      <p class="card-kicker">Type ${esc(detail.typeId)}</p>
+      <h3>${esc(detail.name)}</h3>
+      <dl class="meta">
+        <div><dt>Lane</dt><dd>${esc(detail.lane === "must-review" ? "Must-review" : "Optional tray")}</dd></div>
+        <div><dt>Cite</dt><dd>${esc(detail.cite || "—")}</dd></div>
+        <div><dt>Pass tag</dt><dd>${esc(PASS_HINT[detail.passTag] || detail.passTag || "—")}</dd></div>
+      </dl>
+      <h4>Present copy</h4>
+      <blockquote>${esc(detail.copy || detail.error || "—")}</blockquote>
+      <h4>Fields that tripped the floor</h4>
+      ${renderEvidence(detail.evidence)}
+      <h4>Trigger</h4>
+      <p class="trigger">${esc(detail.trigger)}</p>
+    </article>
+  ` : `<article class="detail detail-empty"><p>Select a card to read the cite, fields, and present copy.</p></article>`;
+
+  const silentRows = silent.map((item) => {
+    const meta = state.typesById[item.typeId];
+    return `<li><span>Type ${esc(item.typeId)} · ${esc(meta?.name || "")}</span><span>${esc(item.reason)}</span></li>`;
+  }).join("");
+
+  const checkLine = !fixture.expected
+    ? "No expectation block on this packet."
+    : check?.ok
+      ? "Bands match this fixture’s expectation."
+      : `Expectation mismatch. High ${JSON.stringify(check?.high || [])} vs ${JSON.stringify(check?.expectedHigh || [])}. Medium ${JSON.stringify(check?.medium || [])} vs ${JSON.stringify(check?.expectedMedium || [])}.`;
+
+  stage.innerHTML = `
+    <header class="packet">
+      <p class="eyebrow">${esc(fixture.filer_ref || "FILER")} · tax year ${esc(fixture.tax_year || "—")} · ${esc(fixture.group || "packet")}</p>
+      <h2>${esc(fixture.label || fixture.id)}</h2>
+      <p class="forms">${esc(forms || "No form list")}</p>
+      <p class="scenario">${esc(fixture.scenario || "")}</p>
+      <p class="packet-check ${check && !check.ok ? "is-bad" : ""}">${esc(checkLine)}</p>
+    </header>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab ${state.tab === "high" ? "is-active" : ""}" data-tab="high" role="tab" aria-selected="${state.tab === "high"}">
+        Must-review <span>${highCount}</span>
+      </button>
+      <button type="button" class="tab ${state.tab === "medium" ? "is-active" : ""}" data-tab="medium" role="tab" aria-selected="${state.tab === "medium"}">
+        Optional tray <span>${mediumCount}</span>
+      </button>
+    </div>
+    <div class="workspace">
+      <div class="cards">${cardHtml}</div>
+      ${detailHtml}
+    </div>
+    <details class="silent">
+      <summary>Silent checks (${silent.length}) — no present copy</summary>
+      <ul>${silentRows}</ul>
+    </details>
+    <details class="silent">
+      <summary>Full extract (fields only)</summary>
+      <pre>${esc(JSON.stringify(evaluation.fields, null, 2))}</pre>
+    </details>
+  `;
+}
+
+function renderStatus() {
+  const checked = [...state.checks.values()];
+  if (!checked.length) {
+    checkSlot.textContent = "Loading fixtures…";
+    return;
+  }
+  const good = checked.filter((item) => item.ok).length;
+  checkSlot.textContent = `${good} of ${checked.length} fixtures match their expected bands`;
+  checkSlot.classList.toggle("is-bad", good !== checked.length);
+}
+
+function selectFixture(id, preferTab = true) {
+  const packet = state.packets.get(id);
+  if (!packet) return;
+  state.selectedId = id;
+  if (preferTab) {
+    const cards = packet.evaluation.cards;
+    state.tab = cards.some((card) => card.band === "High")
+      ? "high"
+      : cards.some((card) => card.band === "Medium")
+        ? "medium"
+        : "high";
+  }
+  const visible = packet.evaluation.cards.filter((card) => (state.tab === "high" ? card.band === "High" : card.band === "Medium"));
+  state.detailKey = visible[0] ? `${visible[0].band}:${visible[0].typeId}` : null;
+  renderRail();
+  renderStage();
+}
+
+function ingestFixture(fixture, group = "dropped") {
+  if (!fixture.id) fixture.id = `dropped-${Date.now()}`;
+  fixture.group = fixture.group || group;
+  fixture.label = fixture.label || fixture.id;
+  const evaluation = evaluateFixture(fixture, state.typesById);
+  state.packets.set(fixture.id, { fixture, evaluation });
+  state.checks.set(fixture.id, matchExpectation(fixture, evaluation.cards));
+  if (!state.manifest.some((item) => item.id === fixture.id)) {
+    state.manifest.push({
+      id: fixture.id,
+      label: fixture.label,
+      group: fixture.group === "high" || fixture.group === "silent" || fixture.group === "medium" ? fixture.group : "dropped",
+      file: null,
+    });
+  }
+  renderStatus();
+  selectFixture(fixture.id);
+}
+
+function showDropError(message) {
+  const node = document.querySelector("#drop-error");
+  if (!node) return;
+  node.hidden = false;
+  node.textContent = message;
+}
+
+async function boot() {
+  try {
+    const [manifest, registry] = await Promise.all([
+      loadJson("./fixtures/manifest.json"),
+      loadJson("./data/types.json"),
+    ]);
+    state.typesById = typesMap(registry.types || []);
+    state.manifest = manifest.fixtures.slice();
+    const loaded = await Promise.all(state.manifest.map(async (item) => {
+      const fixture = await loadJson(`./fixtures/${item.file}`);
+      return { item, fixture };
+    }));
+    for (const { item, fixture } of loaded) {
+      fixture.group = fixture.group || item.group;
+      const evaluation = evaluateFixture(fixture, state.typesById);
+      state.packets.set(item.id, { fixture, evaluation });
+      state.checks.set(item.id, matchExpectation(fixture, evaluation.cards));
+    }
+    renderStatus();
+    const first = state.manifest.find((item) => item.group === "high") || state.manifest[0];
+    if (first) selectFixture(first.id);
+  } catch (error) {
+    rail.innerHTML = "";
+    stage.innerHTML = `<div class="boot-error">
+      <h2>Open this app through a local server</h2>
+      <p>${esc(error.message)}</p>
+      <p>From the repo root, run <code>npm start</code> and open <code>http://localhost:8080</code>. A <code>file://</code> tab blocks the fixture fetch.</p>
+    </div>`;
+    checkSlot.textContent = "Not loaded";
+  }
+}
+
+rail.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-fixture]");
+  if (!button) return;
+  selectFixture(button.dataset.fixture);
+});
+
+rail.addEventListener("change", (event) => {
+  if (event.target.id === "fixture-select") selectFixture(event.target.value);
+});
+
+rail.addEventListener("dragover", (event) => {
+  if (!event.target.closest("#drop-zone")) return;
+  event.preventDefault();
+  document.querySelector("#drop-zone")?.classList.add("is-hot");
+});
+
+rail.addEventListener("dragleave", (event) => {
+  if (!event.target.closest("#drop-zone")) return;
+  document.querySelector("#drop-zone")?.classList.remove("is-hot");
+});
+
+rail.addEventListener("drop", async (event) => {
+  const zone = event.target.closest("#drop-zone");
+  if (!zone) return;
+  event.preventDefault();
+  zone.classList.remove("is-hot");
+  const file = event.dataTransfer?.files?.[0];
+  if (!file) return;
+  try {
+    const fixture = parseFixtureText(await file.text());
+    ingestFixture(fixture);
+  } catch (error) {
+    showDropError(error.message);
+  }
+});
+
+rail.addEventListener("change", async (event) => {
+  if (event.target.id !== "file-input") return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const fixture = parseFixtureText(await file.text());
+    ingestFixture(fixture);
+  } catch (error) {
+    showDropError(error.message);
+  }
+});
+
+stage.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-tab]");
+  if (tab) {
+    state.tab = tab.dataset.tab;
+    const packet = state.packets.get(state.selectedId);
+    const visible = packet.evaluation.cards.filter((card) => (state.tab === "high" ? card.band === "High" : card.band === "Medium"));
+    state.detailKey = visible[0] ? `${visible[0].band}:${visible[0].typeId}` : null;
+    renderStage();
+    return;
+  }
+  const card = event.target.closest("[data-card]");
+  if (!card) return;
+  state.detailKey = card.dataset.card;
+  renderStage();
+});
+
+boot();

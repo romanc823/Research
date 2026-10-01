@@ -1,0 +1,34 @@
+{
+  "id": "high-02-scorp-near-zero-w2",
+  "anon": true,
+  "label": "S corporation — distributions, officer W-2 at zero",
+  "group": "high",
+  "filer_ref": "FILER-102",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form 1120-S",
+    "Schedule K-1"
+  ],
+  "scenario": "S corporation paid distributions and reported officer W-2 of zero. Self-employment income and earned income are zero on this packet, so SEP/Solo and cash-balance stay quiet.",
+  "fields": {
+    "s_corp": true,
+    "officer_w2": 0,
+    "distributions": 96000,
+    "se_income": 0,
+    "earned_income": 0,
+    "retirement_deduction": 0,
+    "qbi_fields": {
+      "qbi_income": 0,
+      "tentative_deduction": 0,
+      "deduction_taken": 0,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [
+      "2"
+    ],
+    "medium": []
+  }
+}
