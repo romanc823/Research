@@ -4,26 +4,39 @@ Phase A scaffold. Drop an anonymized packet, extract fields, score them against 
 
 This is a research desk for review, not a client portal. It does not e-file, does not talk to tax software, and does not price work.
 
-Roman: open this folder in Cursor **on your computer** and follow [Desktop open path](docs/OPEN.md). The screen is fixture data moving through `extract → score → present`. Extend a floor by editing `js/score.js` and a fixture, not by adding a model.
+Roman: pull `main`, then open the live page. The screen is fixture data moving through `extract → score → present`. Extend a floor by editing `js/score.js` and a fixture, not by adding a model.
 
-## Desktop open path
+## Open the desk
 
-Chrome on the Desktop reaches a server only when that server is running on the Desktop. A cloud agent, Codespace, or VM that logged HTTP 200 for `http://127.0.0.1:8080` was answering on **that** machine. Start `npm start` in a terminal on your computer, then open the URL that terminal prints. The short checklist is [docs/OPEN.md](docs/OPEN.md).
+No local server. GitHub Pages serves this repository from `main` at the site root (`/`).
+
+1. `git checkout main` and `git pull`.
+2. Open **[https://romanc823.github.io/Research/](https://romanc823.github.io/Research/)**.
+
+Styles, ES modules, and `fixtures/manifest.json` use paths relative to that page, so they load on the project site and under `npm start`. Do not open `index.html` with `file://`.
+
+GitHub Free publishes Pages only from a public repository, so this repo is public. The pack is still anonymized fixtures only.
+
+The short checklist is [docs/OPEN.md](docs/OPEN.md). `npm start` is optional local development, documented in that same file.
+
+## Optional local development
+
+`npm start` runs `tools/serve.mjs` (Node's built-in `http`, no installed packages) on `127.0.0.1` of the computer where the terminal is open. Use it when you want to edit the desk before a Pages rebuild. A cloud agent, Codespace, or VM that logged HTTP 200 for `http://127.0.0.1:8080` was answering on **that** machine.
 
 1. Cursor → `File → Open Folder` → the repo root on your computer (the folder with `package.json`).
 2. `Terminal → New Terminal` so the shell is that root.
-3. Run `npm start` and leave the terminal open. It runs `tools/serve.mjs` (Node's built-in `http`, no installed packages) and binds `127.0.0.1`.
+3. Run `npm start` and leave the terminal open.
 4. Open the URL on the last line, in Cursor Simple Browser or Chrome on this same computer:
 
    ```text
    Tax research scaffold at http://127.0.0.1:8080
    ```
 
-   If the preferred port is busy, the process tries the next ports (8080–8090, or `PORT` through `PORT+10`) and prints the one that listened. Use that line. `file://` will not load the fixtures.
+   If the preferred port is busy, the process tries the next ports (8080–8090, or `PORT` through `PORT+10`) and prints the one that listened. Use that line.
 
 ### ERR_CONNECTION_REFUSED
 
-Nothing on this computer is accepting that host and port. The usual causes: `npm start` is not running here, the terminal printed a different port, or the process you saw was a cloud agent. Run `npm start` locally and open the printed URL.
+Nothing on this computer is accepting that host and port. The usual causes: `npm start` is not running here, the terminal printed a different port, or the process you saw was a cloud agent. Run `npm start` locally and open the printed URL. The hosted desk does not use this port: [https://romanc823.github.io/Research/](https://romanc823.github.io/Research/).
 
 ### EADDRINUSE
 
@@ -65,7 +78,8 @@ The drop zone accepts a local fixture JSON file only. It refuses PDFs, files wit
 | `fixtures/` | Anonymized packets and `manifest.json` |
 | `docs/TAXONOMY.md` | Locked floors |
 | `docs/PIPELINE.md` | Drop → Ingest → Extract → Score → Present, and one-pass vs second-eye |
-| `docs/OPEN.md` | Desktop open path, connection refused, port in use |
+| `docs/OPEN.md` | Pull `main`, open the live URL. Optional local server notes. |
+| `.nojekyll` | Publishes the repo as static files. Pages does not run Jekyll. |
 | `tools/self-check.mjs` | Fixture expectations and floor boundaries |
 | `tools/build-fixtures.mjs` | Regenerates the JSON pack |
 | `tools/serve.mjs` | Static server. Walks the next free ports and prints the URL. |
