@@ -1,0 +1,37 @@
+{
+  "id": "silent-03-09-little-deduction-thin-ti",
+  "anon": true,
+  "label": "Silent twin — small retirement deduction, thin taxable income, tech wages",
+  "group": "silent",
+  "filer_ref": "FILER-116",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Form 4562"
+  ],
+  "scenario": "Self-employment income is above the SEP/Solo floor but the retirement deduction is 1500, not zero. Equipment additions are material and bonus taken is zero, but taxable income does not absorb. A technology Schedule C has wages and no Form 6765 or study.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 91000,
+    "earned_income": 91000,
+    "retirement_deduction": 1500,
+    "qbi_fields": {
+      "qbi_income": 91000,
+      "tentative_deduction": 18200,
+      "deduction_taken": 18200,
+      "sstb": false
+    },
+    "section_179_bonus": {
+      "adds_cost": 160000,
+      "amount_taken": 0
+    },
+    "ti_absorbs": false,
+    "tech_sch_c_wages_only": true,
+    "form_6765_or_rd_study": false
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

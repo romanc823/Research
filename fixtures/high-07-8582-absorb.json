@@ -1,0 +1,27 @@
+{
+  "id": "high-07-8582-absorb",
+  "anon": true,
+  "label": "Schedule E — suspended loss and current-year passive income",
+  "group": "high",
+  "filer_ref": "FILER-106",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule E",
+    "Form 8582"
+  ],
+  "scenario": "Form 8582 shows suspended passive loss and the current year has passive income. One activity only, so grouping stays quiet. No hours log, so REP stays silent rather than moving to the tray.",
+  "fields": {
+    "form_8582_suspended": true,
+    "cy_passive_income": true,
+    "multiple_passive_activities": false,
+    "sch_e_re_loss": false,
+    "hours_log_rep": null
+  },
+  "expected": {
+    "high": [
+      "7"
+    ],
+    "medium": []
+  }
+}

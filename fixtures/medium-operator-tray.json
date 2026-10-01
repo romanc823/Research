@@ -1,0 +1,72 @@
+{
+  "id": "medium-operator-tray",
+  "anon": true,
+  "label": "Composite tray — cash-balance, office, auto, states, grouping, SEHI, energy, R&D",
+  "group": "medium",
+  "filer_ref": "FILER-120",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form 1120-S",
+    "Form 8829",
+    "Form 4562",
+    "Form 8582",
+    "Form 5695",
+    "Form 6765"
+  ],
+  "scenario": "Synthetic tray packet for an S corporation operator. Household earned income is above the cash-balance floor, officer W-2 is not near zero, and the retirement deduction is zero. Self-employment income is zero. Form 8829 is present and is not a complete no-gap filing. There is a vehicle signal. W-2 boxes show more than one state, and the state returns are not in the packet. Form 8582 lists multiple activities and no current-year passive income. Schedule E losses have no hours log. SEHI is blank against premiums. Form 5695 and Form 6765 are in the packet. No home-ownership document and no children.",
+  "fields": {
+    "s_corp": true,
+    "officer_w2": 140000,
+    "distributions": 48000,
+    "se_income": 0,
+    "earned_income": 320000,
+    "retirement_deduction": 0,
+    "qbi_fields": {
+      "qbi_income": 200000,
+      "tentative_deduction": 40000,
+      "deduction_taken": 40000,
+      "sstb": false
+    },
+    "form_8829": true,
+    "ho_8829_complete_no_gap": false,
+    "ho_context": true,
+    "home_ownership_doc": false,
+    "vehicle_signal": true,
+    "w2_unreimbursed_only": false,
+    "multi_state_signal": true,
+    "state_returns_mismatch": false,
+    "form_8582_suspended": true,
+    "multiple_passive_activities": true,
+    "cy_passive_income": false,
+    "prior_grouping_election": false,
+    "sch_e_re_loss": true,
+    "hours_log_rep": null,
+    "sehi_gap": true,
+    "form_5695": true,
+    "form_6765_or_rd_study": true,
+    "child_dependent": false,
+    "dependents_on_return": false,
+    "large_refund": 800,
+    "estimates_paid": 42000,
+    "total_tax": 40000,
+    "section_179_bonus": {
+      "adds_cost": 0,
+      "amount_taken": 0
+    },
+    "ti_absorbs": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [
+      "3b",
+      "7b",
+      "8a",
+      "8b",
+      "17",
+      "19",
+      "21",
+      "22"
+    ]
+  }
+}

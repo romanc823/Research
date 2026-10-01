@@ -1,0 +1,40 @@
+{
+  "id": "high-15-hire-kids",
+  "anon": true,
+  "label": "Schedule C — dependent daughter on the return",
+  "group": "high",
+  "filer_ref": "FILER-112",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C"
+  ],
+  "scenario": "Schedule C and a dependent daughter. Ages are present as enrichment and are not required for the flag. No home-ownership document and no care-document gap.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 72000,
+    "earned_income": 72000,
+    "retirement_deduction": 6000,
+    "qbi_fields": {
+      "qbi_income": 72000,
+      "tentative_deduction": 14400,
+      "deduction_taken": 14400,
+      "sstb": false
+    },
+    "child_dependent": true,
+    "dependent_relationship": "daughter",
+    "dependent_ages": [
+      11,
+      14
+    ],
+    "dependents_on_return": true,
+    "home_ownership_doc": false,
+    "care_docs_or_fsa": false
+  },
+  "expected": {
+    "high": [
+      "15"
+    ],
+    "medium": []
+  }
+}

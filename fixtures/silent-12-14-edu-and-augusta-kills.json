@@ -1,0 +1,40 @@
+{
+  "id": "silent-12-14-edu-and-augusta-kills",
+  "anon": true,
+  "label": "Silent twin — K-1 only, Form 8829, education without 1098-T",
+  "group": "silent",
+  "filer_ref": "FILER-117",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule K-1",
+    "Form 8829"
+  ],
+  "scenario": "The only business paper is a K-1. Form 8829 is in the packet and was tagged as if it proved ownership; extract rejects that. Education context is present and Form 1098-T is not. The dependent relationship is parent, not a child.",
+  "fields": {
+    "k1_only": true,
+    "schedule_c": false,
+    "s_corp": false,
+    "form_8829": true,
+    "ho_context": false,
+    "home_ownership_doc": true,
+    "home_ownership_source": "8829",
+    "edu_credit_gap": true,
+    "form_1098t": false,
+    "ctc_odc_gap": false,
+    "dependents_on_return": true,
+    "child_dependent": false,
+    "dependent_relationship": "parent",
+    "care_docs_or_fsa": false,
+    "qbi_fields": {
+      "qbi_income": 40000,
+      "tentative_deduction": 8000,
+      "deduction_taken": 8000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

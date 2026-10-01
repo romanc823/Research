@@ -1,0 +1,37 @@
+{
+  "id": "high-09-section-179",
+  "anon": true,
+  "label": "Schedule C — material additions, little §179, income absorbs",
+  "group": "high",
+  "filer_ref": "FILER-107",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Form 4562"
+  ],
+  "scenario": "Equipment additions are material, section 179 and bonus taken are zero, and taxable income is marked as able to absorb more. Retirement deduction is already on the return.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 100000,
+    "earned_income": 100000,
+    "retirement_deduction": 8000,
+    "qbi_fields": {
+      "qbi_income": 100000,
+      "tentative_deduction": 20000,
+      "deduction_taken": 20000,
+      "sstb": false
+    },
+    "section_179_bonus": {
+      "adds_cost": 180000,
+      "amount_taken": 0
+    },
+    "ti_absorbs": true
+  },
+  "expected": {
+    "high": [
+      "9"
+    ],
+    "medium": []
+  }
+}

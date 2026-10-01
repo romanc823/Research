@@ -1,0 +1,26 @@
+{
+  "id": "high-18-rep-hours",
+  "anon": true,
+  "label": "Schedule E — hours log at 820 and real-estate losses",
+  "group": "high",
+  "filer_ref": "FILER-114",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule E",
+    "Hours log"
+  ],
+  "scenario": "The hours log is at least 750 and Schedule E shows real-estate losses. Form 8582 is not in this packet, and building basis is not extracted here.",
+  "fields": {
+    "hours_log_rep": 820,
+    "sch_e_re_loss": true,
+    "form_8582_suspended": false,
+    "building_basis": 0
+  },
+  "expected": {
+    "high": [
+      "18"
+    ],
+    "medium": []
+  }
+}

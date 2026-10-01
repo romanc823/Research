@@ -1,0 +1,39 @@
+{
+  "id": "high-17-20-state-and-2441",
+  "anon": true,
+  "label": "W-2 — state-return mismatch and incomplete Form 2441",
+  "group": "high",
+  "filer_ref": "FILER-113",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Form W-2",
+    "State return",
+    "Form 2441",
+    "Dependent-care statement"
+  ],
+  "scenario": "State returns in the packet do not match the work state on Form W-2. A dependent child has care documents, and Form 2441 is incomplete against those documents. No Schedule C or S corporation.",
+  "fields": {
+    "multi_state_signal": true,
+    "state_returns_mismatch": true,
+    "dependents_on_return": true,
+    "child_dependent": true,
+    "dependent_relationship": "son",
+    "dependent_ages": [
+      6
+    ],
+    "care_docs_or_fsa": true,
+    "form_2441_gap": true,
+    "ctc_odc_gap": false,
+    "edu_credit_gap": false,
+    "earned_income": 98000,
+    "retirement_deduction": 4500
+  },
+  "expected": {
+    "high": [
+      "17",
+      "20"
+    ],
+    "medium": []
+  }
+}

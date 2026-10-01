@@ -1,0 +1,35 @@
+{
+  "id": "high-12-ctc-and-1098t",
+  "anon": true,
+  "label": "Dependents — CTC gap and Form 1098-T in the packet",
+  "group": "high",
+  "filer_ref": "FILER-109",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule 8812",
+    "Form 1098-T"
+  ],
+  "scenario": "A dependent-credit gap is on the return and education items are paired with Form 1098-T. There is no Schedule C or S corporation, so hire-kids stays quiet. Care documents are not in the packet.",
+  "fields": {
+    "dependents_on_return": true,
+    "child_dependent": true,
+    "dependent_relationship": "daughter",
+    "dependent_ages": [
+      17,
+      19
+    ],
+    "ctc_odc_gap": true,
+    "edu_credit_gap": true,
+    "form_1098t": true,
+    "care_docs_or_fsa": false,
+    "earned_income": 92000,
+    "retirement_deduction": 5000
+  },
+  "expected": {
+    "high": [
+      "12"
+    ],
+    "medium": []
+  }
+}

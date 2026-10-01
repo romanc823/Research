@@ -1,0 +1,30 @@
+{
+  "id": "silent-01-sstb-no-gap",
+  "anon": true,
+  "label": "Silent twin — SSTB, QBI deduction already taken",
+  "group": "silent",
+  "filer_ref": "FILER-115",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Form 8995"
+  ],
+  "scenario": "SSTB is true, and the QBI deduction taken equals the tentative deduction. SSTB does not raise a flag on its own. Retirement deduction is present.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 84000,
+    "earned_income": 84000,
+    "retirement_deduction": 5000,
+    "qbi_fields": {
+      "qbi_income": 84000,
+      "tentative_deduction": 16800,
+      "deduction_taken": 16800,
+      "sstb": true
+    }
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}
