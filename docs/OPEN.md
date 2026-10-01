@@ -1,8 +1,33 @@
-# Desktop open path
+# Open the research desk
 
-The desk is a static page served by a process on **your** computer. Chrome and Cursor Simple Browser on the Desktop open `127.0.0.1` on the Desktop. A cloud agent, Codespace, or other VM that printed `http://127.0.0.1:8080` (even with HTTP 200) is a different machine. Start the server in a terminal on the Desktop, then open the URL that terminal prints.
+## Live URL
 
-## Steps
+The desk is a static site on GitHub Pages. Open it in Chrome like any other https page. You do not run `npm start`, and you do not use `localhost`.
+
+1. On your computer, in this repo:
+
+   ```bash
+   git checkout main
+   git pull
+   ```
+
+2. Open:
+
+   [https://romanc823.github.io/Research/](https://romanc823.github.io/Research/)
+
+Pages publishes the `main` branch from the repository root (`/`). `index.html`, `css/app.css`, `js/app.js`, `data/types.json`, and `fixtures/manifest.json` are relative to that page, so modules and fixtures load over https.
+
+The left rail should list the anonymized fixtures. After a push to `main`, Pages rebuilds before the new files show up. If the rail still says "Loading fixtures…", wait a minute and reload.
+
+Do not open `index.html` from Finder or Explorer. A `file://` tab blocks ES modules and `fetch`.
+
+GitHub Free cannot publish Pages from a private repository, so this repository is public. The pack is still anonymized fixtures only: no live client data, no e-file, no pricing.
+
+`.nojekyll` in the repo root tells Pages to copy the files as they are, instead of running Jekyll.
+
+## Optional local development
+
+`npm start` is only for editing the desk on your computer before a Pages rebuild. The process binds `127.0.0.1` on the computer where the terminal is open. A cloud agent, Codespace, or other VM that printed `http://127.0.0.1:8080` (even with HTTP 200) is a different machine.
 
 1. On your computer, open this repo's root in Cursor (`File → Open Folder`). The folder contains `package.json` and `index.html`. Use the clone on the Desktop.
 2. Open a terminal at that root (`Terminal → New Terminal`). On macOS or Linux, `pwd` should end in the repo folder. On Windows, `cd` should show that folder.
@@ -14,7 +39,7 @@ The desk is a static page served by a process on **your** computer. Chrome and C
 
    That runs `tools/serve.mjs` with Node's built-in `http` module. No packages are installed. It binds `127.0.0.1` only.
 
-4. Read the last line. It is the only URL to open, for example:
+4. Read the last line. It is the only local URL to open, for example:
 
    ```text
    Tax research scaffold at http://127.0.0.1:8080
@@ -22,20 +47,20 @@ The desk is a static page served by a process on **your** computer. Chrome and C
 
    If 8080 is busy, the process tries 8081, then 8082, through 8090 (or `PORT` through `PORT+10`) and prints the port that listened. `PORT=8095 npm start` starts the walk at 8095.
 
-5. Open **that exact URL** in Cursor Simple Browser (`View → Simple Browser`) or in Chrome on the same computer. `file://` cannot load the fixtures: ES modules and `fetch` need this server.
+5. Open **that exact URL** in Cursor Simple Browser (`View → Simple Browser`) or in Chrome on the same computer.
 
-Closing the terminal stops the desk.
+Closing the terminal stops the local desk. The GitHub Pages URL keeps working.
 
-## ERR_CONNECTION_REFUSED
+### ERR_CONNECTION_REFUSED
 
-Chrome is talking to a port on this computer where nothing is accepting connections.
+Chrome is talking to a port on this computer where nothing is accepting connections. This applies to `npm start` only. The hosted desk is [https://romanc823.github.io/Research/](https://romanc823.github.io/Research/).
 
 - The terminal is not running `npm start` on this Desktop. A log from a cloud agent is a log from another computer.
 - The terminal printed a different port. Open the printed URL. A saved bookmark to port 8080 is the wrong address when the log says 8081 or anything else.
 - The process exited. Run `npm start` again and leave that terminal open.
 - The address bar says `localhost` and still refuses while the printed `127.0.0.1` URL works. Use the printed URL. This server listens on IPv4 `127.0.0.1`.
 
-## EADDRINUSE
+### EADDRINUSE
 
 Something on this computer already claimed the port, or the operating system reserved it so a bind fails and a connect is still refused.
 

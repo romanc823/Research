@@ -278,9 +278,9 @@ async function boot() {
   } catch (error) {
     rail.innerHTML = "";
     stage.innerHTML = `<div class="boot-error">
-      <h2>Open this app through a local server</h2>
+      <h2>Fixtures did not load</h2>
       <p>${esc(error.message)}</p>
-      <p>From the repo root, run <code>npm start</code> and open <code>http://localhost:8080</code>. A <code>file://</code> tab blocks the fixture fetch.</p>
+      <p>Open <a href="https://romanc823.github.io/Research/">https://romanc823.github.io/Research/</a>. A <code>file://</code> tab blocks the fixture fetch. For local development, from the repo root run <code>npm start</code> and open the URL that terminal prints.</p>
     </div>`;
     checkSlot.textContent = "Not loaded";
   }
