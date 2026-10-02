@@ -23,8 +23,17 @@ export const STUB_FLOORS = {
   estimatesExcess: 10_000,
 };
 
+/**
+ * Locked type 2b figures. These are not STUB_FLOORS and they are not
+ * read by types 1–15 or 18. A missing Schedule SE amount is not zero.
+ */
+export const TYPE_2B_LOCK = {
+  seIncome: 100_000,
+  rcGap: 25_000,
+};
+
 export const TYPE_ORDER = [
-  "1", "2", "3", "3b", "4", "5", "5b", "6", "7", "7b",
+  "1", "2", "2b", "3", "3b", "4", "5", "5b", "6", "7", "7b",
   "8a", "8b", "9", "11", "12", "13", "14", "15", "16",
   "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
 ];
@@ -101,6 +110,64 @@ function row(typeId, band, passTag, reason, evidence) {
   };
 }
 
+function explicitMoney(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formList(fields) {
+  return Array.isArray(fields.forms_in_packet) ? fields.forms_in_packet.map((item) => String(item)) : [];
+}
+
+function formsMatch(fields, pattern) {
+  return formList(fields).some((item) => pattern.test(item));
+}
+
+/**
+ * Type 2b only. High or silent. Never Medium.
+ * W-2 Box 1 (`earned_income`) is not an input. A one-year spike is not a kill.
+ */
+function scoreScorpConversion(f) {
+  const se = explicitMoney(f.se_income);
+  const rcRaw = explicitMoney(f.planning_rc);
+  const rc = rcRaw != null && rcRaw >= 0 ? rcRaw : null;
+  const scheduleC = bool(f.schedule_c) || formsMatch(f, /\bschedule\s*c\b/i);
+  const alreadyS = bool(f.s_corp) || formsMatch(f, /1120\s*-?\s*s\b/i);
+  const partnership = bool(f.k1_only) || formsMatch(f, /\b1065\b/);
+  const seForm = formsMatch(f, /\bschedule\s*se\b/i);
+  const gap = se != null && rc != null ? se - rc : null;
+  const evidence = {
+    schedule_c: scheduleC,
+    se_income: se,
+    planning_rc: rc,
+    one_year_spike: bool(f.one_year_spike),
+    s_corp: bool(f.s_corp),
+    form_1120s: formsMatch(f, /1120\s*-?\s*s\b/i),
+    multi_owner_1065: formsMatch(f, /\b1065\b/),
+    k1_only: bool(f.k1_only),
+    schedule_se: se != null || seForm,
+  };
+
+  let silentReason = null;
+  if (alreadyS) silentReason = "Already an S corporation or Form 1120-S is in the packet";
+  else if (partnership) silentReason = "Multi-owner Form 1065 or K-1 only";
+  else if (!scheduleC && se == null && !seForm) silentReason = "W-2 only, with no Schedule C and no Schedule SE";
+  else if (!scheduleC) silentReason = "Schedule C is not in the packet";
+  else if (se == null) silentReason = "Schedule SE income is missing and is not treated as zero";
+  else if (se <= 0) silentReason = "Loss or near-zero self-employment profit";
+
+  const atFloor = se != null && se >= TYPE_2B_LOCK.seIncome;
+  const atGap = gap != null && gap >= TYPE_2B_LOCK.rcGap;
+  if (!silentReason && (atFloor || atGap)) {
+    return row("2b", "High", "second-eye", atFloor
+      ? "Schedule SE income is at the locked floor"
+      : "Explicit compensation gap is at the locked gap", evidence);
+  }
+  if (!silentReason) {
+    silentReason = "Schedule SE income is under the locked floor and the compensation gap is under the locked gap";
+  }
+  return row("2b", "silent", null, silentReason, evidence);
+}
+
 export function scoreAll(fields) {
   const f = fields || {};
   const out = [];
@@ -147,6 +214,8 @@ export function scoreAll(fields) {
       officer_w2: officer,
     }));
   }
+
+  out.push(scoreScorpConversion(f));
 
   if (se > STUB_FLOORS.seIncome && retirementIsZero) {
     out.push(row("3", "High", "one-pass", "Self-employment income is above the floor and the retirement deduction is zero", {

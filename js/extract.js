@@ -2,7 +2,8 @@
  * Extract layer: fields only.
  * No narrative, no present-copy, no band. Unknown inputs stay empty
  * rather than being invented. Omitted retirement_deduction stays null
- * so a missing line is not treated as a literal zero.
+ * so a missing line is not treated as a literal zero. Omitted se_income
+ * stays null so a missing Schedule SE is not a zero-profit loss.
  */
 
 export const FIELD_KEYS = [
@@ -23,6 +24,8 @@ export const FIELD_KEYS = [
   "dependent_ages",
   "retirement_deduction",
   "se_income",
+  "planning_rc",
+  "one_year_spike",
   "earned_income",
   "officer_w2",
   "distributions",
@@ -182,7 +185,9 @@ export function extractFields(fixture) {
     dependent_relationship: typeof src.dependent_relationship === "string" ? src.dependent_relationship : null,
     dependent_ages: ages,
     retirement_deduction: asNumber(src.retirement_deduction),
-    se_income: asNumber(src.se_income) ?? 0,
+    se_income: asNumber(src.se_income),
+    planning_rc: asNumber(src.planning_rc),
+    one_year_spike: asBool(src.one_year_spike),
     earned_income: asNumber(src.earned_income) ?? 0,
     officer_w2: asNumber(src.officer_w2) ?? 0,
     distributions: asNumber(src.distributions) ?? 0,

@@ -83,7 +83,7 @@ Pass tags are review effort, not a second scoring model.
 | Pass tag | Types when they are High | What the reviewer is doing |
 | --- | --- | --- |
 | one-pass | 3, 4, 6, 11, 12, and the document Highs 17 and 20 | Compare a number or a missing form. About 3 minutes. |
-| second-eye | 1, 2, 7, 9, 13, 14, 15, 18 | Judgment. About 5 minutes. SSTB, reasonable compensation, passive absorb, §179 capacity, cost-segregation ROI, Augusta, hire-kids, and REP hours all stay here. |
+| second-eye | 1, 2, 2b, 7, 9, 13, 14, 15, 18 | Judgment. About 5 minutes. SSTB, reasonable compensation, S-corp conversion, passive absorb, §179 capacity, cost-segregation ROI, Augusta, hire-kids, and REP hours all stay here. |
 | tray-skim | Every Medium band | Optional tray. About 2 minutes. |
 
 Type 1 can be High on math and still carry `second-eye`, because SSTB is a gate the reviewer has to see. The math does not promote it to a quicker pass.
@@ -109,6 +109,7 @@ These kills are intentional, not missing features:
 - A gain with missing lots and no wash sale or loss room
 - A prior cost-segregation study
 - Grouping, cash-balance, and charitable bunching, which stay Medium or silent and do not become High in this pass
+- Type 2b when the filer is already an S corporation, files Form 1120-S, is a multi-owner Form 1065 or K-1 only, has a loss or zero Schedule SE profit, is missing Schedule SE, or is W-2-only. There is no Medium. A one-year spike does not silence it.
 
 ## Stub calibrations
 

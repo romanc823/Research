@@ -7,7 +7,7 @@
 
 import { FIELD_KEYS } from "./extract.js";
 import { parseFormLayout } from "./form-layout.js";
-import { explicitOrdinaryRate } from "./savings.js";
+import { explicitOrdinaryRate, explicitPayrollRate, explicitWageBase } from "./savings.js";
 
 export const CONFIDENCE_FLOOR = 0.8;
 export const OCR_WATCH_FLOOR = 0.9;
@@ -108,6 +108,8 @@ const FIELD_LABELS = {
   "DEPENDENT AGES": ["dependent_ages", "ages"],
   "RETIREMENT DEDUCTION": ["retirement_deduction", "amount"],
   "SE INCOME": ["se_income", "amount"],
+  "PLANNING RC": ["planning_rc", "amount"],
+  "ONE YEAR SPIKE": ["one_year_spike", "bool"],
   "EARNED INCOME": ["earned_income", "amount"],
   "OFFICER W2": ["officer_w2", "amount"],
   "DISTRIBUTIONS": ["distributions", "amount"],
@@ -356,6 +358,9 @@ export function parseDocumentText(text, meta = {}) {
   let taxYearConfidence = null;
   let forms = [];
   let planningRate = null;
+  let oasdiWageBase = null;
+  let oasdiRate = null;
+  let medicareRate = null;
   const readableLines = [];
 
   function keep(field, value, evidence, ocrConf) {
@@ -447,6 +452,21 @@ export function parseDocumentText(text, meta = {}) {
       const rate = parseRate(value);
       if (rate == null) dropped.push({ evidence, reason: "Marginal rate was not one explicit ordinary rate, so no savings rate was stored." });
       else planningRate = rate;
+      continue;
+    }
+    if (key === "OASDI WAGE BASE") {
+      const parsed = parseAmount(value);
+      const wageBase = parsed.omit ? null : explicitWageBase(parsed.value);
+      if (wageBase == null) dropped.push({ evidence, reason: "OASDI wage base was not one explicit amount, so no payroll split was stored." });
+      else oasdiWageBase = wageBase;
+      continue;
+    }
+    if (key === "OASDI RATE" || key === "MEDICARE RATE") {
+      const rate = explicitPayrollRate(parseRate(value));
+      const label = key === "OASDI RATE" ? "OASDI rate" : "Medicare rate";
+      if (rate == null) dropped.push({ evidence, reason: `${label} was not one explicit payroll rate, so no payroll split was stored.` });
+      else if (key === "OASDI RATE") oasdiRate = rate;
+      else medicareRate = rate;
       continue;
     }
     if (REFUSED_KEYS.has(key)) {
@@ -553,5 +573,8 @@ export function parseDocumentText(text, meta = {}) {
     ingest,
     ...(privateMode ? { ephemeral: true, anon } : { anon: true }),
     ...(planningRate != null ? { planning_rate: planningRate } : {}),
+    ...(oasdiWageBase != null ? { oasdi_wage_base: oasdiWageBase } : {}),
+    ...(oasdiRate != null ? { oasdi_rate: oasdiRate } : {}),
+    ...(medicareRate != null ? { medicare_rate: medicareRate } : {}),
   };
 }

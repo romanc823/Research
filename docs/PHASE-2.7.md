@@ -59,7 +59,9 @@ A missing amount stays missing. Two different Schedule SE amounts are omitted. A
 
 High cards only. Medium cards stay cite and gate. Silent rows have no estimate.
 
-The only v0 figure is the unclaimed QBI deduction (tentative minus taken) times an explicit ordinary rate on the packet (`MARGINAL RATE: 0.24` or `planning_rate`). The rate has to be greater than 0 and at most 0.37. A missing rate, a hedged rate, or a rate above that cap is omitted. It is not stored as zero.
+One v0 figure is the unclaimed QBI deduction (tentative minus taken) times an explicit ordinary rate on the packet (`MARGINAL RATE: 0.24` or `planning_rate`). The rate has to be greater than 0 and at most 0.37. A missing rate, a hedged rate, or a rate above that cap is omitted. It is not stored as zero.
+
+Type 2b has its own High-card sibling. It is omitted unless the packet has an explicit compensation figure (`PLANNING RC`) plus an OASDI wage base and separate OASDI and Medicare rates. The figure is the payroll difference of Schedule SE net earnings and that compensation figure, with the wage-base cap on the OASDI rate only. There is no default compensation figure and no flat 15.3% factor. SSTB omits the dollar and does not raise confidence. The band stays where the scorer put it.
 
 The estimate sits beside the card. It is not present copy. Types 14 and 15 keep their fixed lines. The pass tag does not change.
 

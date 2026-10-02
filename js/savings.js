@@ -30,6 +30,19 @@ export function explicitOrdinaryRate(value) {
   return rate;
 }
 
+/** Packet payroll rate. Not an ordinary-income rate and not a flat 15.3% factor. */
+export function explicitPayrollRate(value) {
+  const rate = num(value);
+  if (rate == null || rate <= 0 || rate > 0.2) return null;
+  return rate;
+}
+
+export function explicitWageBase(value) {
+  const wageBase = num(value);
+  if (wageBase == null || wageBase <= 0) return null;
+  return wageBase;
+}
+
 function adviceHit(text) {
   return ADVICE.some((rule) => rule.test(text));
 }
@@ -38,18 +51,46 @@ function roundMoney(value) {
   return Math.round(value * 100) / 100;
 }
 
+function payrollOn(amount, wageBase, oasdiRate, medicareRate) {
+  const base = Math.max(0, amount);
+  return Math.min(base, wageBase) * oasdiRate + base * medicareRate;
+}
+
+/**
+ * Type 2b dollars. Omitted unless the packet has an explicit compensation
+ * figure and the OASDI wage base plus separate OASDI and Medicare rates.
+ * SSTB omits the figure. There is no default compensation figure.
+ * @returns {null | { point: number, basis: string }}
+ */
+function scorpConversionEstimate(fields, fixture) {
+  if (fields?.qbi_fields?.sstb === true) return null;
+  const se = num(fields?.se_income);
+  const rc = num(fields?.planning_rc);
+  if (se == null || rc == null || rc < 0) return null;
+  const wageBase = explicitWageBase(fixture?.oasdi_wage_base);
+  const oasdiRate = explicitPayrollRate(fixture?.oasdi_rate);
+  const medicareRate = explicitPayrollRate(fixture?.medicare_rate);
+  if (wageBase == null || oasdiRate == null || medicareRate == null) return null;
+  const point = roundMoney(payrollOn(se, wageBase, oasdiRate, medicareRate) - payrollOn(rc, wageBase, oasdiRate, medicareRate));
+  if (!(point > 0)) return null;
+  return {
+    point,
+    basis: "Schedule SE net earnings minus the explicit compensation figure, split by the packet OASDI wage base and the separate OASDI and Medicare rates. A person reviews this before anyone relies on it.",
+  };
+}
+
 /**
  * @returns {null | { point: number, low: null, high: null, basis: string, confidence: number, label: string }}
  */
 export function savingsFor(hit, fields, fixture) {
   if (!hit || hit.band !== "High") return null;
   if (hit.typeId === "14" || hit.typeId === "15") return null;
-  const rate = explicitOrdinaryRate(fixture?.planning_rate);
-  if (rate == null) return null;
 
   let point = null;
   let basis = null;
   if (hit.typeId === "1") {
+    const rate = explicitOrdinaryRate(fixture?.planning_rate);
+    if (rate == null) return null;
     const qbi = fields?.qbi_fields || {};
     const income = num(qbi.qbi_income);
     const tentative = num(qbi.tentative_deduction);
@@ -59,6 +100,11 @@ export function savingsFor(hit, fields, fixture) {
     if (!(income > 0 && gap >= STUB_FLOORS.qbiGapMin)) return null;
     point = roundMoney(gap * rate);
     basis = "Unclaimed QBI deduction (tentative minus taken) multiplied by the explicit ordinary rate on the packet. Cite the Form 8995 gap and that rate. A person reviews this before anyone relies on it.";
+  } else if (hit.typeId === "2b") {
+    const estimate = scorpConversionEstimate(fields, fixture);
+    if (!estimate) return null;
+    point = estimate.point;
+    basis = estimate.basis;
   } else {
     return null;
   }
