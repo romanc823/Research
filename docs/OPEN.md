@@ -23,15 +23,16 @@ The left rail should list the anonymized fixtures. After a push to `main`, Pages
 
 The drop zone on that page accepts a fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. The file stays in the browser. OCR uses the copies of Tesseract under `vendor/ocr/` on this site. The first scan can take a few seconds while that engine loads. Nothing is uploaded.
 
-Five sample buttons load synthetic packets (no client data):
+Six sample buttons load synthetic packets (no client data):
 
 - **Sample PDF** — text layer. Augusta is High. A vehicle line is on the tray.
 - **Sample JPEG** — label font. REP hours are High. Form 8283 is on the tray.
 - **Sample PNG** — label font. The packet stays silent.
-- **Sample scan** — image-only PDF. OCR should show the same Augusta card as the text PDF. Blank retirement stays blank.
+- **Sample scan** — image-only JPEG PDF. OCR should show the same Augusta card as the text PDF. Blank retirement stays blank.
 - **Sample photo** — not the label font. OCR should show the SEP / Solo card from an explicit retirement zero. Blank hours and blank basis stay blank.
+- **Sample fax** — the same Augusta labels as a CCITT Group 4 scan. OCR should show the same Augusta card. Blank retirement stays blank. The first fax also loads the page rasterizer.
 
-OCR runs when a PDF has no text layer, or when a JPEG/PNG is not the label font. It still refuses a page it cannot read: JBIG2, CCITT, or JPEG2000 scans; a page with no `ANON: TRUE` and `FILER-###` above the confidence floor (0.8); and any SSN or EIN pattern. Lines under that floor are omitted. Lines that would raise cost segregation, Augusta, or hire-kids (types 13, 14, and 15) need 0.9. Missing amounts are not filled with zero. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
+OCR runs when a PDF has no text layer, or when a JPEG/PNG is not the label font. JPEG and FlateDecode page images go straight to OCR. CCITT, JBIG2, and JPEG2000 pages are rasterized in the browser first. A page that still cannot be read is refused, with no amounts filled in as zero. A page with no `ANON: TRUE` and `FILER-###` above the confidence floor (0.8), and any SSN or EIN pattern, is refused. Lines under that floor are omitted. Lines that would raise cost segregation, Augusta, or hire-kids (types 13, 14, and 15) need 0.9. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
 
 Do not open `index.html` from Finder or Explorer. A `file://` tab blocks ES modules and `fetch`.
 

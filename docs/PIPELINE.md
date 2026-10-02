@@ -35,14 +35,16 @@ The buttons under the drop zone load synthetic packets from `samples/ingest/`. T
 
 OCR runs in the browser from `vendor/ocr/` (Tesseract.js 5.1.1 and the English LSTM model). There is no server. A text-layer PDF is not OCR’d, even if the file also contains an image. A labeled JPEG or PNG is not OCR’d when the label font reads at least one line.
 
+A JPEG (DCTDecode) or 8-bit FlateDecode page image is decoded directly and sent to OCR. Any other page image — CCITT Group 4, JBIG2, JPEG2000, or a mix of those with a JPEG — is painted by PDF.js (`vendor/pdfjs/`, PDF.js 6.3.289) and the PNG of that page is what OCR reads. The first 40 pages are painted. A page with no ink is skipped. PDF.js is not loaded for a text-layer PDF or for a JPEG/FlateDecode scan.
+
 OCR still refuses:
 
-- A PDF whose only page images are JBIG2, CCITT, or JPEG2000. Export a JPEG or PNG, or a PDF whose scan is JPEG (DCTDecode) or an 8-bit FlateDecode gray or RGB image.
+- A page that cannot be painted, or a painted page with no ink. The message says the page image could not be read. Missing amounts are not filled with zero.
 - A page with no line at or above 0.8, or no `ANON: TRUE` and `FILER-###` above that floor.
 - An SSN or EIN pattern anywhere in the OCR text. The whole packet is refused.
 - Cost segregation, Augusta, and hire-kids trigger lines under the watch floor (0.9). Those fields are omitted so types 13, 14, and 15 stay silent. Other lines between 0.8 and 0.9 can still be kept.
 
-Rebuilding the synthetic rasters, the image-only scan, and the photo is `npm run ingest-samples` after `npm install`.
+Rebuilding the synthetic rasters, the image-only scan, the photo, and the Group 4 fax is `npm run ingest-samples` after `npm install`.
 
 Fail-closed rules:
 
@@ -55,7 +57,7 @@ Fail-closed rules:
 
 The field bag is a subset of `js/extract.js` `FIELD_KEYS`. Extract, score, and present then run exactly as they do for a fixture. Present copy is still the fixed templates. No model writes it.
 
-GitHub Pages is a static host. Ingest, including OCR, runs in the browser. The first scan on a page loads `vendor/ocr/` from this site. A digital PDF with a text layer still uses that text. A phone photo of the anonymized label lines can be read when OCR confidence clears the floor.
+GitHub Pages is a static host. Ingest, including OCR and page rasterizing, runs in the browser. The first JPEG scan loads `vendor/ocr/` from this site. The first fax, JBIG2, or JPEG2000 scan also loads `vendor/pdfjs/`. A digital PDF with a text layer still uses that text. A phone photo of the anonymized label lines can be read when OCR confidence clears the floor.
 
 ### Extract
 
@@ -145,4 +147,4 @@ Not in this pass:
 - Changing a floor's band (for example, making cash-balance High once actuarial documents exist)
 - Replacing `STUB_FLOORS` with firm-locked dollars
 
-Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`. The same command also reads the synthetic PDF, JPEG, and PNG, OCRs the scan and the photo, and checks that blanks did not become zeros. `npm install` once so the checker can load tesseract.js. The Pages site uses the copies in `vendor/ocr/` and does not need that install.
+Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`. The same command also reads the synthetic PDF, JPEG, and PNG, OCRs the JPEG scan, the Group 4 fax, and the photo, and checks that blanks did not become zeros. `npm install` once so the checker can load tesseract.js, pdfjs-dist, and the canvas package. The Pages site uses the copies in `vendor/ocr/` and `vendor/pdfjs/` and does not need that install.

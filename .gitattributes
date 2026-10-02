@@ -7,3 +7,4 @@ samples/ingest/*.png binary
 vendor/ocr/tessdata/*.gz binary
 vendor/ocr/core/*.wasm.js binary
 vendor/fonts/*.ttf binary
+vendor/pdfjs/wasm/*.wasm binary

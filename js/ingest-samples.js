@@ -80,6 +80,11 @@ export const SCAN_PDF_LINES = AUGUSTA_PDF_LINES.map((line) => (
   line === "FILER: FILER-201" ? "FILER: FILER-211" : line
 ));
 
+/** Same Augusta packet again, as a Group 4 fax. FILER-213 keeps it distinct from the JPEG scan. */
+export const FAX_PDF_LINES = SCAN_PDF_LINES.map((line) => (
+  line === "FILER: FILER-211" ? "FILER: FILER-213" : line
+));
+
 /** Photo of an explicit retirement zero. Blanks stay blank. Parent is not hire-kids. */
 export const PHOTO_SEP_LINES = [
   "ANON: TRUE",

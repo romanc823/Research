@@ -1,6 +1,7 @@
 /**
  * Page images inside a PDF. JPEG (DCTDecode) and 8-bit FlateDecode
- * gray or RGB images can be handed to OCR. JBIG2, CCITT, and JPX stay unread.
+ * gray or RGB images are handed to OCR as-is. JBIG2, CCITT, and JPEG2000
+ * are reported in `unsupported` so the caller can rasterize the page.
  */
 
 import { inflateZlib } from "./inflate-zlib.js";

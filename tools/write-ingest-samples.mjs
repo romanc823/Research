@@ -1,12 +1,13 @@
 /**
- * Write the synthetic PDF, JPEG, PNG, scan, and photo used by the desk and by npm run check.
+ * Write the synthetic PDF, JPEG, PNG, scan, photo, and fax used by the desk and by npm run check.
  * Anonymized labels only. Do not point this at a client file.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AUGUSTA_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
+import { AUGUSTA_PDF_LINES, FAX_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
 import { buildImagePdf, buildTextPdf } from "../js/pdf-text.js";
+import { buildFaxPdf } from "./ccitt-sample.mjs";
 import { renderLabelRaster } from "../js/raster-label.js";
 import { encodeGrayJpeg } from "../js/jpeg-gray.js";
 import { encodeGrayPng } from "../js/png-gray.js";
@@ -24,11 +25,13 @@ const png = await encodeGrayPng(pngRaster.gray, pngRaster.width, pngRaster.heigh
 const scan = await renderPacketJpeg(SCAN_PDF_LINES);
 const photo = await renderPacketJpeg(PHOTO_SEP_LINES);
 const scanPdf = buildImagePdf(scan.jpeg, scan.width, scan.height);
+const faxPdf = await buildFaxPdf(FAX_PDF_LINES);
 
 fs.writeFileSync(path.join(dir, "synthetic-augusta.pdf"), pdf);
 fs.writeFileSync(path.join(dir, "synthetic-rep-hours.jpg"), jpeg);
 fs.writeFileSync(path.join(dir, "synthetic-silent-misses.png"), png);
 fs.writeFileSync(path.join(dir, "synthetic-scan-augusta.pdf"), scanPdf);
 fs.writeFileSync(path.join(dir, "synthetic-photo-sep.jpg"), photo.jpeg);
+fs.writeFileSync(path.join(dir, "synthetic-fax-augusta.pdf"), faxPdf);
 
-console.log(`Wrote 5 synthetic packets in ${dir}`);
+console.log(`Wrote 6 synthetic packets in ${dir}`);
