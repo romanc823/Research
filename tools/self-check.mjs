@@ -83,6 +83,17 @@ for (const item of manifest.fixtures) {
     if (card.typeId === "2b" && card.passTag !== "second-eye") fail(`${item.id} type 2b pass tag is ${card.passTag}`);
     if (card.typeId === "2b" && card.savings) fail(`${item.id} showed a type 2b dollar without a locked payroll split`);
   }
+  if (item.id === "high-2b-se-only") {
+    if (fixture.fields.schedule_c === true) fail("SE-only fixture includes Schedule C");
+    if (!(fixture.fields.se_income >= 100_000)) fail("SE-only fixture is under $100,000");
+    if ((fixture.forms_in_packet || []).some((form) => /\bschedule\s*c\b/i.test(form))) {
+      fail("SE-only fixture lists Schedule C");
+    }
+    const seOnly = evaluation.cards.find((card) => card.typeId === "2b");
+    if (!seOnly || seOnly.band !== "High" || seOnly.passTag !== "second-eye") {
+      fail("SE-only fixture did not High type 2b");
+    }
+  }
   const type2b = evaluation.scored.find((row) => row.typeId === "2b");
   if (!type2b) fail(`${item.id} did not score type 2b`);
   else if (type2b.band === "Medium") fail(`${item.id} scored 2b as Medium`);
@@ -92,8 +103,8 @@ for (const item of manifest.fixtures) {
   }
 }
 
-if (manifest.fixtures.length < 12 || manifest.fixtures.length > 20) {
-  fail(`fixture count ${manifest.fixtures.length} is outside 12–20`);
+if (manifest.fixtures.length < 12 || manifest.fixtures.length > 21) {
+  fail(`fixture count ${manifest.fixtures.length} is outside 12–21`);
 }
 
 const empty = evaluateFixture({ anon: true, tax_year: 2025, fields: {} }, typesById);
@@ -167,12 +178,29 @@ expectBand("cash-balance above the hard floor", {
 
 expectBand("both retirement floors", {
   se_income: 300000, earned_income: 300000, retirement_deduction: 0,
-}, { 3: "High", "3b": "Medium", "2b": "silent" });
+}, { 3: "High", "3b": "Medium", "2b": "High" });
 
 const schC = { schedule_c: true, retirement_deduction: 1 };
 expectBand("2b high at 100k with schedule c and se", {
   ...schC, se_income: TYPE_2B_LOCK.seIncome,
 }, { "2b": "High", 2: "silent", 3: "silent" });
+expectBand("2b high se at 100k with no schedule c", {
+  se_income: TYPE_2B_LOCK.seIncome, retirement_deduction: 1,
+}, { "2b": "High", 2: "silent", 3: "silent" });
+expectBand("2b high gap with no schedule c", {
+  se_income: 80_000, planning_rc: 55_000, retirement_deduction: 1,
+}, { "2b": "High", 3: "silent" });
+expectBand("2b silent schedule se form without an amount", {
+  forms_in_packet: ["Schedule SE"], retirement_deduction: 1,
+}, { "2b": "silent" });
+const seFormBlank = bands({ forms_in_packet: ["Schedule SE"] }).find((row) => row.typeId === "2b");
+if (!seFormBlank || seFormBlank.band !== "silent" || !/missing/.test(seFormBlank.reason)) {
+  fail(`Schedule SE form without an amount was ${seFormBlank?.reason}`);
+}
+const seOnlyRow = bands({ se_income: 120_000, retirement_deduction: 1 }).find((row) => row.typeId === "2b");
+if (!seOnlyRow || seOnlyRow.band !== "High" || seOnlyRow.evidence.schedule_c !== false || seOnlyRow.evidence.business_signal !== true) {
+  fail("se_income without Schedule C did not open type 2b");
+}
 expectBand("2b silent one dollar under 100k without a gap", {
   ...schC, se_income: TYPE_2B_LOCK.seIncome - 1,
 }, { "2b": "silent" });

@@ -58,8 +58,8 @@ const TEMPLATES = {
   "2b"() {
     return line(
       "Schedule SE income is at the locked floor, or an explicit compensation figure on the packet leaves a locked gap.",
-      "Schedule C and Schedule SE.",
-      "an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, missing Schedule SE, or wages without Schedule C and Schedule SE stays silent. A one-year spike does not silence this check. SSTB does not raise confidence. This check does not order the retirement-deduction review.",
+      "Schedule C or Schedule SE.",
+      "an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, or missing Schedule SE stays silent. Wages with no Schedule C, no Schedule SE, and no self-employment income stay silent. A one-year spike does not silence this check. SSTB does not raise confidence. This check does not order the retirement-deduction review.",
       "hold for planner review.",
     );
   },

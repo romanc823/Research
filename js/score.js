@@ -134,24 +134,26 @@ function scoreScorpConversion(f) {
   const alreadyS = bool(f.s_corp) || formsMatch(f, /1120\s*-?\s*s\b/i);
   const partnership = bool(f.k1_only) || formsMatch(f, /\b1065\b/);
   const seForm = formsMatch(f, /\bschedule\s*se\b/i);
+  const sePresent = se != null;
+  const business = scheduleC || seForm || sePresent;
   const gap = se != null && rc != null ? se - rc : null;
   const evidence = {
     schedule_c: scheduleC,
     se_income: se,
     planning_rc: rc,
+    business_signal: business,
     one_year_spike: bool(f.one_year_spike),
     s_corp: bool(f.s_corp),
     form_1120s: formsMatch(f, /1120\s*-?\s*s\b/i),
     multi_owner_1065: formsMatch(f, /\b1065\b/),
     k1_only: bool(f.k1_only),
-    schedule_se: se != null || seForm,
+    schedule_se: seForm || sePresent,
   };
 
   let silentReason = null;
   if (alreadyS) silentReason = "Already an S corporation or Form 1120-S is in the packet";
   else if (partnership) silentReason = "Multi-owner Form 1065 or K-1 only";
-  else if (!scheduleC && se == null && !seForm) silentReason = "W-2 only, with no Schedule C and no Schedule SE";
-  else if (!scheduleC) silentReason = "Schedule C is not in the packet";
+  else if (!business) silentReason = "W-2 only, with no Schedule C, no Schedule SE, and no self-employment income";
   else if (se == null) silentReason = "Schedule SE income is missing and is not treated as zero";
   else if (se <= 0) silentReason = "Loss or near-zero self-employment profit";
 

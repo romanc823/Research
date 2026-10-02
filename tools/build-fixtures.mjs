@@ -71,6 +71,22 @@ const fixtures = [
     expected: { high: ["2b", "3"], medium: [] },
   },
   {
+    id: "high-2b-se-only",
+    label: "Schedule SE — net earnings at least $100,000, no Schedule C",
+    group: "high",
+    filer_ref: "FILER-121",
+    forms_in_packet: ["Form 1040", "Schedule SE"],
+    scenario: "Schedule SE net earnings are $120,000. Schedule C is not in the packet. Type 2b is must-review from the self-employment amount. The retirement deduction is already present, so SEP/Solo stays quiet. No compensation figure or payroll rates are on the packet, so no dollar estimate is attached.",
+    fields: {
+      schedule_c: false,
+      se_income: 120000,
+      earned_income: 40000,
+      retirement_deduction: 8000,
+      qbi_fields: qbi(120000),
+    },
+    expected: { high: ["2b"], medium: [] },
+  },
+  {
     id: "high-04-2210-underpayment",
     label: "Wage packet — Form 2210 underpayment math",
     group: "high",

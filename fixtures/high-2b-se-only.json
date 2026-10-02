@@ -1,0 +1,31 @@
+{
+  "id": "high-2b-se-only",
+  "anon": true,
+  "label": "Schedule SE — net earnings at least $100,000, no Schedule C",
+  "group": "high",
+  "filer_ref": "FILER-121",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule SE"
+  ],
+  "scenario": "Schedule SE net earnings are $120,000. Schedule C is not in the packet. Type 2b is must-review from the self-employment amount. The retirement deduction is already present, so SEP/Solo stays quiet. No compensation figure or payroll rates are on the packet, so no dollar estimate is attached.",
+  "fields": {
+    "schedule_c": false,
+    "se_income": 120000,
+    "earned_income": 40000,
+    "retirement_deduction": 8000,
+    "qbi_fields": {
+      "qbi_income": 120000,
+      "tentative_deduction": 24000,
+      "deduction_taken": 24000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [
+      "2b"
+    ],
+    "medium": []
+  }
+}

@@ -51,7 +51,7 @@ Windows Command Prompt uses `for /f "tokens=5" %a in ('netstat -ano ^| findstr :
 
 ## On the screen
 
-The left rail lists 20 synthetic packets. Pick one. The main pane runs that packet and shows:
+The left rail lists 21 synthetic packets. Pick one. The main pane runs that packet and shows:
 
 - **Must-review** — High cards
 - **Optional tray** — Medium cards

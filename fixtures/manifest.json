@@ -21,6 +21,12 @@
       "label": "Schedule C — SE above the floor, retirement deduction zero"
     },
     {
+      "id": "high-2b-se-only",
+      "file": "high-2b-se-only.json",
+      "group": "high",
+      "label": "Schedule SE — net earnings at least $100,000, no Schedule C"
+    },
+    {
       "id": "high-04-2210-underpayment",
       "file": "high-04-2210-underpayment.json",
       "group": "high",
