@@ -1,14 +1,15 @@
 /**
  * Floor check for the Phase A stub.
  * Confirms fixture expectations, talk bans, fixed Augusta / hire-kids lines,
- * and the boundary readings in js/score.js.
+ * the boundary readings in js/score.js, and the view-only report.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractFields } from "../js/extract.js";
 import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS, TYPE_2B_LOCK } from "../js/score.js";
-import { FIXED_COPY, presentCopy } from "../js/present.js";
+import { FIXED_COPY, findTalkBan, presentCopy } from "../js/present.js";
+import { LOCKED_REPORT_LINES, buildReport, formatReportDollars, reportJson, reportMarkdown, reportProse } from "../js/report.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
 import { parseFixtureText } from "../js/intake.js";
 import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR, OCR_WATCH_FLOOR } from "../js/ingest.js";
@@ -1260,10 +1261,251 @@ for (const item of manifest.fixtures) {
   }
 }
 
+function checkReports() {
+  const taxonomy = fs.readFileSync(path.join(root, "docs/TAXONOMY.md"), "utf8");
+  const reportSource = fs.readFileSync(path.join(root, "js/report.js"), "utf8");
+  const reportCode = codeWithoutComments(reportSource);
+  if (/from\s+["']\.\/score\.js["']|from\s+["']\.\/savings\.js["']|STUB_FLOORS|TYPE_2B_LOCK|0\.153|15\.3/.test(reportCode)) {
+    fail("report.js scores, reads a floor, or adds a savings formula");
+  }
+  if (/TCJA|OBBBA|sunset|attorney|enrolled agent|\bCPA\b|you should|qualify for|localStorage|writeFile|fetch\s*\(/.test(reportSource)) {
+    fail("report.js invented a flag or stored a packet");
+  }
+  const presentSource = fs.readFileSync(path.join(root, "js/present.js"), "utf8");
+  const scoreSource = fs.readFileSync(path.join(root, "js/score.js"), "utf8");
+  if (/from\s+["']\.\/report\.js["']/.test(presentSource) || /from\s+["']\.\/report\.js["']/.test(scoreSource)) {
+    fail("score or present now depends on the report");
+  }
+  for (const [typeId, slots] of Object.entries(LOCKED_REPORT_LINES)) {
+    for (const [slot, line] of Object.entries(slots)) {
+      if (!line || !taxonomy.includes(line)) fail(`type ${typeId} ${slot} is not a taxonomy line`);
+      if (findTalkBan(line)) fail(`type ${typeId} ${slot} breaks a talk ban`);
+    }
+  }
+  if (LOCKED_REPORT_LINES[13]?.humanGate !== "ROI is a human gate, not a score.") {
+    fail("type 13 human-gate line drifted");
+  }
+
+  const floorSnapshot = {
+    seIncome: 50_000,
+    nearZeroOfficerW2: 5_000,
+    minDistributions: 10_000,
+    qbiGapMin: 500,
+    materialAdds: 25_000,
+    little179Ratio: 0.1,
+    cbEarnedIncome: 250_000,
+    priorYearCharitable: 5_000,
+    repHours: 750,
+    costSegTaxYears: 3,
+    largeRefund: 10_000,
+    estimatesMultiple: 1.5,
+    estimatesExcess: 10_000,
+  };
+
+  function assertReport(name, fixture, evaluation, options = {}) {
+    const before = JSON.stringify(evaluation.cards.map((card) => ({
+      typeId: card.typeId,
+      band: card.band,
+      passTag: card.passTag,
+      copy: card.copy,
+      cite: card.cite,
+      point: card.savings?.point ?? null,
+    })));
+    const report = buildReport(fixture, evaluation, options);
+    const after = JSON.stringify(evaluation.cards.map((card) => ({
+      typeId: card.typeId,
+      band: card.band,
+      passTag: card.passTag,
+      copy: card.copy,
+      cite: card.cite,
+      point: card.savings?.point ?? null,
+    })));
+    if (before !== after) fail(`${name} report mutated the cards`);
+    if (report.flags.lawChange != null || report.flags.professional != null) fail(`${name} invented a flag`);
+    const markdown = reportMarkdown(report);
+    const parsed = JSON.parse(reportJson(report));
+    if (JSON.stringify(parsed) !== JSON.stringify(report)) fail(`${name} JSON did not round-trip`);
+    if (!markdown.includes("| Type | Band | Pass | Cite | $ |")) fail(`${name} markdown missed the summary table`);
+    if (!markdown.includes("| Law change | — |") || !markdown.includes("| Professional | — |")) {
+      fail(`${name} flags strip was not empty`);
+    }
+    if (/\|\s*Low\s*\|/.test(markdown)) fail(`${name} markdown included a Low band`);
+    for (const line of reportProse(report)) {
+      const ban = findTalkBan(line);
+      if (ban) fail(`${name} report prose hit "${ban}"`);
+    }
+    const kept = evaluation.cards.filter((card) => card.band === "High" || card.band === "Medium");
+    if (report.rows.length !== kept.length) fail(`${name} report dropped or added a card`);
+    kept.forEach((card, index) => {
+      const row = report.rows[index];
+      if (row.typeId !== String(card.typeId) || row.band !== card.band) fail(`${name} row ${index} drifted`);
+      if (row.band !== "High" && row.band !== "Medium") fail(`${name} kept band ${row.band}`);
+      if (row.description !== card.copy) fail(`${name} type ${row.typeId} paraphrased present copy`);
+      if (row.cite !== (card.cite || "")) fail(`${name} type ${row.typeId} cite drifted`);
+      if (row.pass !== card.passTag) fail(`${name} type ${row.typeId} pass tag drifted`);
+      if (row.dollars !== formatReportDollars(card)) fail(`${name} type ${row.typeId} dollar column drifted`);
+      if (row.band === "Medium" && row.dollars !== "—") fail(`${name} type ${row.typeId} Medium showed a dollar`);
+      if (/^\$?0(?:\.00)?$/.test(row.dollars)) fail(`${name} type ${row.typeId} showed zero`);
+      if (row.estimate == null && row.dollars !== "—") fail(`${name} type ${row.typeId} showed a dollar without an estimate`);
+      if (row.estimate && row.dollars === "—") fail(`${name} type ${row.typeId} hid a positive estimate`);
+      if (row.estimate && row.estimate.point !== card.savings.point) fail(`${name} type ${row.typeId} recomputed the dollar`);
+      if (row.assumptions || row.timing || row.risks) fail(`${name} type ${row.typeId} filled an unlocked line`);
+      const lockedGate = LOCKED_REPORT_LINES[row.typeId]?.humanGate || null;
+      if (row.humanGate !== lockedGate) fail(`${name} type ${row.typeId} human gate drifted`);
+      if (row.estimate && row.typeId !== "1" && row.typeId !== "2b") {
+        fail(`${name} type ${row.typeId} unlocked a new dollar`);
+      }
+    });
+    if (evaluation.scored?.some((row) => row.band === "silent" && report.rows.some((item) => item.typeId === row.typeId && item.band === "silent"))) {
+      fail(`${name} report included a silent row`);
+    }
+    const packed = reportJson(report) + markdown;
+    if (/"se_income"|building_basis|hours_log_rep/.test(packed)) fail(`${name} report copied a field bag`);
+    if (ssn.test(packed) || ein.test(packed)) fail(`${name} report contained an SSN or EIN`);
+    return { report, markdown };
+  }
+
+  for (const item of manifest.fixtures) {
+    const fixture = JSON.parse(fs.readFileSync(path.join(root, "fixtures", item.file), "utf8"));
+    if (fixture.anon !== true) fail(`${item.id} report ran on a live packet`);
+    const evaluation = evaluateFixture(fixture, typesById);
+    const { report, markdown } = assertReport(item.id, fixture, evaluation);
+    if (report.anon !== true || report.ephemeral !== false) fail(`${item.id} public report was not an anon fixture export`);
+    if (report.filerRef !== fixture.filer_ref) fail(`${item.id} filer ref drifted`);
+    if (markdown.includes("stays in the browser tab")) fail(`${item.id} public export was marked ephemeral`);
+    if (item.id === "high-13-cost-seg") {
+      const row = report.rows.find((entry) => entry.typeId === "13");
+      if (!row || row.humanGate !== "ROI is a human gate, not a score.") fail("cost-seg report omitted the locked human gate");
+      if (!markdown.includes("ROI is a human gate, not a score.")) fail("cost-seg markdown omitted the locked human gate");
+    }
+    if (item.id === "high-2b-se-only") {
+      const row = report.rows.find((entry) => entry.typeId === "2b");
+      if (!row || row.dollars !== "—" || row.estimate) fail("2b fixture report showed a dollar without a payroll split");
+    }
+    if (item.id === "silent-01-sstb-no-gap" && (report.rows.length !== 0 || !markdown.includes("No High or Medium cards."))) {
+      fail("silent twin report invented a card");
+    }
+  }
+
+  const qbiPacket = {
+    anon: true,
+    tax_year: 2025,
+    filer_ref: "FILER-910",
+    planning_rate: 0.24,
+    fields: {
+      qbi_fields: { qbi_income: 80000, tentative_deduction: 16000, deduction_taken: 4000 },
+      schedule_c: true,
+      se_income: 88000,
+      retirement_deduction: 0,
+      earned_income: 88000,
+      home_ownership_source: "1098",
+      vehicle_signal: true,
+    },
+  };
+  const qbiEval = evaluateFixture(qbiPacket, typesById);
+  const qbiView = assertReport("qbi-dollar", qbiPacket, qbiEval);
+  const qbiRow = qbiView.report.rows.find((row) => row.typeId === "1");
+  const sepRow = qbiView.report.rows.find((row) => row.typeId === "3");
+  const vehicleRow = qbiView.report.rows.find((row) => row.typeId === "8b");
+  const augustaRow = qbiView.report.rows.find((row) => row.typeId === "14");
+  if (qbiRow?.dollars !== "$2,880.00" || qbiRow.estimate?.point !== 2880) fail(`QBI report dollar was ${qbiRow?.dollars}`);
+  if (sepRow?.dollars !== "—" || sepRow?.estimate) fail("SEP report invented a dollar");
+  if (vehicleRow?.band !== "Medium" || vehicleRow.dollars !== "—") fail("medium report showed a dollar");
+  if (augustaRow?.description !== FIXED_COPY[14] || augustaRow.dollars !== "—") fail("Augusta report drifted");
+  if (!qbiView.markdown.includes("| 1 · QBI | High | second-eye | §199A | $2,880.00 |")) {
+    fail("QBI summary row drifted");
+  }
+
+  const splitView = assertReport("2b-dollar", {
+    anon: true,
+    tax_year: 2025,
+    filer_ref: "FILER-220",
+    fields: aboveBaseFields,
+    ...payrollSplit,
+  }, aboveBase);
+  const splitRow = splitView.report.rows.find((row) => row.typeId === "2b");
+  if (splitRow?.dollars !== "$18,456.40" || splitRow.band !== "High" || splitRow.pass !== "second-eye") {
+    fail(`2b report dollar was ${splitRow?.dollars}`);
+  }
+  if (splitRow?.estimate?.basis !== aboveCard.savings.basis) fail("2b report paraphrased the savings basis");
+
+  const bareView = assertReport("2b-omit", {
+    anon: true,
+    tax_year: 2025,
+    filer_ref: "FILER-221",
+    fields: { schedule_c: true, se_income: 150_000, retirement_deduction: 1 },
+    planning_rate: 0.24,
+  }, noSplit);
+  if (bareView.report.rows.find((row) => row.typeId === "2b")?.dollars !== "—") {
+    fail("2b report showed zero instead of omitting the dollar");
+  }
+
+  const hidden = buildReport({
+    anon: true,
+    filer_ref: "FILER-301",
+    tax_year: 2025,
+  }, {
+    cards: [{
+      typeId: "8b",
+      band: "Medium",
+      passTag: "tray-skim",
+      name: "Auto mileage",
+      cite: "Vehicle",
+      copy: presentCopy({ typeId: "8b", band: "Medium" }, {}),
+      savings: { point: 400, label: HUMAN_GATE_LABEL, basis: "A person reviews this before anyone relies on it.", confidence: 0.9 },
+    }, {
+      typeId: "9",
+      band: "High",
+      passTag: "second-eye",
+      name: "§179 / bonus",
+      cite: "§179",
+      copy: presentCopy({ typeId: "9", band: "High" }, {}),
+      savings: { point: 0, label: HUMAN_GATE_LABEL, basis: "A person reviews this before anyone relies on it.", confidence: 0.9 },
+    }],
+  });
+  if (hidden.rows[0].dollars !== "—" || hidden.rows[0].estimate) fail("a Medium savings object reached the report");
+  if (hidden.rows[1].dollars !== "—" || hidden.rows[1].estimate) fail("a zero estimate was shown");
+
+  let refusedLow = false;
+  try {
+    buildReport({ anon: true, filer_ref: "FILER-302", tax_year: 2025 }, {
+      cards: [{ typeId: "1", band: "Low", passTag: "second-eye", name: "QBI", cite: "§199A", copy: "Signal: a. Docs: b. Gate: c. Next: d." }],
+    });
+  } catch (error) {
+    refusedLow = /refused band Low/.test(error.message);
+  }
+  if (!refusedLow) fail("report accepted a Low band");
+
+  let refusedLive = false;
+  try {
+    buildReport({ anon: false, filer_ref: "FILER-LOCAL", tax_year: 2025 }, { cards: [] });
+  } catch (error) {
+    refusedLive = /anonymized/.test(error.message);
+  }
+  if (!refusedLive) fail("public report accepted a live packet");
+
+  const privatePacket = parseDocumentText(FORM_PACKET, { sourceKind: "text", privateMode: true });
+  const privateEval = evaluateFixture(privatePacket, typesById);
+  const privateView = assertReport("private", privatePacket, privateEval, { privateMode: true });
+  if (privateView.report.ephemeral !== true) fail("private report was saved as a public export");
+  if (!privateView.markdown.includes("stays in the browser tab")) fail("private markdown omitted the ephemeral line");
+  if (privateView.markdown.includes("123-45-6789")) fail("private report kept an SSN");
+
+  for (const [key, value] of Object.entries(floorSnapshot)) {
+    if (STUB_FLOORS[key] !== value) fail(`report path drifted floor ${key}`);
+  }
+  if (TYPE_2B_LOCK.seIncome !== 100_000 || TYPE_2B_LOCK.rcGap !== 25_000) fail("report path drifted the type 2b lock");
+  const again = evaluateFixture(qbiPacket, typesById);
+  if (again.cards.find((card) => card.typeId === "1")?.band !== "High") fail("report path changed the QBI band");
+  if (again.cards.find((card) => card.typeId === "3")?.passTag !== "one-pass") fail("report path changed the SEP pass tag");
+}
+
+checkReports();
+
 if (failures.length) {
   console.error(`Self-check failed (${failures.length})`);
   for (const message of failures) console.error(`- ${message}`);
   process.exit(1);
 }
 
-console.log(`Self-check passed: ${manifest.fixtures.length} fixtures, floor boundaries, talk bans, fixed copy.`);
+console.log(`Self-check passed: ${manifest.fixtures.length} fixtures, floor boundaries, talk bans, fixed copy, reports.`);

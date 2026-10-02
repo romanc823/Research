@@ -2,6 +2,7 @@ import { isPrivateDesk } from "./desk-mode.js";
 import { evaluateFixture, matchExpectation } from "./evaluate.js";
 import { ingestDocument } from "./ingest.js";
 import { parseFixtureText } from "./intake.js";
+import { buildReport, reportJson, reportMarkdown } from "./report.js";
 
 const privateDesk = isPrivateDesk(window.location.search);
 
@@ -26,6 +27,7 @@ const state = {
   detailKey: null,
   packets: new Map(),
   checks: new Map(),
+  report: null,
 };
 
 const rail = document.querySelector("#rail");
@@ -179,6 +181,91 @@ function renderIngest(fixture) {
   `;
 }
 
+function downloadText(filename, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportFilename(report, ext) {
+  if (report?.ephemeral) return `research-report.${ext}`;
+  const ref = String(report?.filerRef || "research").replace(/[^A-Za-z0-9-]+/g, "");
+  return `${ref || "research"}-report.${ext}`;
+}
+
+function renderReport(fixture, evaluation) {
+  let report;
+  try {
+    report = buildReport(fixture, evaluation, { privateMode: privateDesk });
+  } catch (error) {
+    state.report = null;
+    return `<section class="report"><h2>Report</h2><p class="empty-lane">${esc(error.message)}</p></section>`;
+  }
+  state.report = report;
+  const tableRows = report.rows.length
+    ? report.rows.map((row) => `
+      <tr>
+        <td>${esc(row.typeId)} · ${esc(row.name)}</td>
+        <td>${esc(row.band)}</td>
+        <td>${esc(row.pass || "—")}</td>
+        <td>${esc(row.cite || "—")}</td>
+        <td class="dollars">${esc(row.dollars)}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="5">No High or Medium cards.</td></tr>`;
+  const details = report.rows.map((row) => {
+    const extra = [
+      row.assumptions ? `<p><strong>Assumptions.</strong> ${esc(row.assumptions)}</p>` : "",
+      row.timing ? `<p><strong>Timing.</strong> ${esc(row.timing)}</p>` : "",
+      row.risks ? `<p><strong>Risks.</strong> ${esc(row.risks)}</p>` : "",
+      row.humanGate ? `<p><strong>Human gate.</strong> ${esc(row.humanGate)}</p>` : "",
+      row.estimate ? `<p class="report-estimate"><span>${esc(row.estimate.label)}</span> ${esc(row.dollars)}</p><p class="report-basis">${esc(row.estimate.basis)}</p>` : "",
+    ].join("");
+    return `<article class="report-detail">
+      <h3>${esc(row.typeId)} · ${esc(row.name)}</h3>
+      <p class="report-meta">Band ${esc(row.band)} · Pass ${esc(row.pass || "—")} · Cite ${esc(row.cite || "—")} · $ ${esc(row.dollars)}</p>
+      <blockquote>${esc(row.description)}</blockquote>
+      ${extra}
+    </article>`;
+  }).join("");
+  const who = report.filerRef || (report.anon ? "FILER" : "Internal desk");
+  return `<section class="report" id="report">
+    <h2>Report</h2>
+    <p class="report-note">${esc(who)} · tax year ${esc(report.taxYear ?? "—")}. View of score and present. No e-file. Not tax advice. Silent checks stay off this report.</p>
+    ${report.ephemeral ? `<p class="report-note">This export stays in this browser tab. It is not saved with the desk.</p>` : ""}
+    <div class="report-actions">
+      <button type="button" data-export="markdown">Export markdown</button>
+      <button type="button" data-export="json">Export JSON</button>
+      <button type="button" data-export="print">Print / PDF</button>
+    </div>
+    <div class="report-table-wrap">
+      <table>
+        <caption>Summary</caption>
+        <thead>
+          <tr><th>Type</th><th>Band</th><th>Pass</th><th>Cite</th><th>$</th></tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    ${details}
+    <section class="flags-strip" aria-label="Flags">
+      <h3>Flags</h3>
+      <table>
+        <thead><tr><th>Flag</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>Law change</td><td>${esc(report.flags.lawChange || "—")}</td></tr>
+          <tr><td>Professional</td><td>${esc(report.flags.professional || "—")}</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </section>`;
+}
+
 function renderEvidence(evidence) {
   const rows = Object.entries(evidence || {}).map(([key, value]) => `
     <div>
@@ -281,6 +368,7 @@ function renderStage() {
       <summary>Full extract (fields only)</summary>
       <pre>${esc(JSON.stringify(evaluation.fields, null, 2))}</pre>
     </details>
+    ${renderReport(fixture, evaluation)}
   `;
 }
 
@@ -455,6 +543,22 @@ rail.addEventListener("change", async (event) => {
 });
 
 stage.addEventListener("click", (event) => {
+  const exportButton = event.target.closest("[data-export]");
+  if (exportButton && state.report) {
+    const kind = exportButton.dataset.export;
+    if (kind === "print") {
+      window.print();
+      return;
+    }
+    if (kind === "markdown") {
+      downloadText(exportFilename(state.report, "md"), reportMarkdown(state.report), "text/markdown");
+      return;
+    }
+    if (kind === "json") {
+      downloadText(exportFilename(state.report, "json"), reportJson(state.report), "application/json");
+    }
+    return;
+  }
   const tab = event.target.closest("[data-tab]");
   if (tab) {
     state.tab = tab.dataset.tab;

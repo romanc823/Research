@@ -76,6 +76,14 @@ GitHub Pages is a static host. Ingest, including OCR and page rasterizing, runs 
 
 Every other card uses four clauses, in this order: signal, docs, gate, next. A banned phrase throws before the string can ship. The card still shows the type, lane, cite, tripped fields, and pass tag beside that copy.
 
+### Report
+
+`js/report.js` reads the cards `evaluate.js` already built. It does not score again, and it does not change a floor, a pass tag, or present copy.
+
+The summary table is type, band, pass, cite, and a dollar column. The dollar is the High-card planning estimate when one is already on the card. Medium is an em dash. A High card with no estimate is an em dash, not zero. Only type 1 and type 2b can carry that estimate, and only from the rules already in `js/savings.js`. Detail repeats the present copy and the cite from `data/types.json`. Assumptions, timing, risks, and a human-gate line are included only when `docs/TAXONOMY.md` already states that line. Type 13 includes `ROI is a human gate, not a score.` The flags strip does not add a law-change note or a professional flag.
+
+Export is markdown. PDF is the browser print dialog. On `?desk=private` the export stays in the tab and is not written into this repository. The public desk still requires an anonymized packet. Silent checks stay off the report.
+
 ## One-pass and second-eye
 
 Pass tags are review effort, not a second scoring model.

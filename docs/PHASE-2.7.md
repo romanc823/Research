@@ -66,3 +66,7 @@ Type 2b has its own High-card sibling. It is omitted unless the packet has an ex
 The estimate sits beside the card. It is not present copy. Types 14 and 15 keep their fixed lines. The pass tag does not change.
 
 Every shown estimate carries: **Planning estimate for human review. Not tax advice.**
+
+## Report export
+
+The report is a view of the High and Medium cards already on screen. It does not rescore. Markdown and JSON download in the browser. Print is the PDF path. On this desk the file is ephemeral: the app does not store it, and a live packet is not committed with the repository. Reload clears the packet and the report. The public desk still refuses a packet that is not anonymized.
