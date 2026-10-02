@@ -57,6 +57,7 @@ The left rail lists 21 synthetic packets. Pick one. The main pane runs that pack
 - **Optional tray** — Medium cards
 - A card's type, lane, cite, tripped fields, pass tag, and present copy
 - **Silent checks** — every other type, with the floor that failed, and no present copy
+- **Report** — a view of the kept High and Medium cards: type, band, pass, cite, and a dollar column. Markdown and JSON export stay in the browser. Print is the PDF path. Silent checks stay off the report.
 
 The header counts how many fixtures match the `expected` block in their JSON. That count is the same check as `npm run check`.
 
@@ -66,7 +67,7 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPE
 
 Public Pages stays anonymized. For a real packet on a machine you control, start the local server and open `?desk=private` (the red banner). The packet stays in the tab. It is not uploaded and it is not saved. Reload clears it. Do not commit that file, and do not drop it on the public Pages URL.
 
-The internal desk reads W-2 boxes 1–6 and 12, SSA net benefits, 1099-R gross, and 1099-INT / 1099-DIV when the text layer states them. A blank box stays blank. The page cap is 100. Fax, JBIG2, and JPEG2000 scans still rasterize before OCR. Details, the savings rule, and the public defaults are in [docs/PHASE-2.7.md](docs/PHASE-2.7.md).
+The internal desk reads W-2 boxes 1–6 and 12, SSA net benefits, 1099-R gross, and 1099-INT / 1099-DIV when the text layer states them. A blank box stays blank. The page cap is 100. Fax, JBIG2, and JPEG2000 scans still rasterize before OCR. A report export on this desk is ephemeral: it is not saved in the tab’s storage and it is not committed. Details, the savings rule, and the public defaults are in [docs/PHASE-2.7.md](docs/PHASE-2.7.md).
 
 A High card can show a planning estimate when the packet has an explicit ordinary rate and a QBI gap. Type 2b can show one only when the packet has an explicit compensation figure plus an OASDI wage base and separate OASDI and Medicare rates. SSTB omits that dollar. The line is **Planning estimate for human review. Not tax advice.** It is not present copy. Medium cards do not show a dollar. Types 14 and 15 keep their fixed lines.
 
@@ -83,6 +84,7 @@ A High card can show a planning estimate when the packet has an explicit ordinar
 | `js/form-layout.js` | Internal-desk IRS box reader. Blank stays blank |
 | `js/desk-mode.js` | `?desk=private` and the page caps |
 | `js/savings.js` | High-card planning estimate. Omitted when the QBI rate or the type 2b payroll split is missing |
+| `js/report.js` | View-only report of kept cards. Markdown, JSON, and print. No rescore |
 | `js/ocr.js` | Tesseract.js in the browser and in `npm run check` |
 | `js/pdf-images.js` | JPEG and FlateDecode page images |
 | `js/pdf-raster.js` | PDF.js page paint for CCITT, JBIG2, and JPEG2000 |
