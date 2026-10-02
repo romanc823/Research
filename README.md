@@ -51,7 +51,7 @@ Windows Command Prompt uses `for /f "tokens=5" %a in ('netstat -ano ^| findstr :
 
 ## On the screen
 
-The left rail lists 20 synthetic packets. Pick one. The main pane runs that packet and shows:
+The left rail lists 21 synthetic packets. Pick one. The main pane runs that packet and shows:
 
 - **Must-review** — High cards
 - **Optional tray** — Medium cards
@@ -68,7 +68,7 @@ Public Pages stays anonymized. For a real packet on a machine you control, start
 
 The internal desk reads W-2 boxes 1–6 and 12, SSA net benefits, 1099-R gross, and 1099-INT / 1099-DIV when the text layer states them. A blank box stays blank. The page cap is 100. Fax, JBIG2, and JPEG2000 scans still rasterize before OCR. Details, the savings rule, and the public defaults are in [docs/PHASE-2.7.md](docs/PHASE-2.7.md).
 
-A High card can show a planning estimate when the packet has an explicit ordinary rate and a QBI gap. The line is **Planning estimate for human review. Not tax advice.** It is not present copy. Medium cards do not show a dollar. Types 14 and 15 keep their fixed lines.
+A High card can show a planning estimate when the packet has an explicit ordinary rate and a QBI gap. Type 2b can show one only when the packet has an explicit compensation figure plus an OASDI wage base and separate OASDI and Medicare rates. SSTB omits that dollar. The line is **Planning estimate for human review. Not tax advice.** It is not present copy. Medium cards do not show a dollar. Types 14 and 15 keep their fixed lines.
 
 ## Layout
 
@@ -82,7 +82,7 @@ A High card can show a planning estimate when the packet has an explicit ordinar
 | `js/ingest-fields.js` | Fail-closed field parser, including the OCR floors |
 | `js/form-layout.js` | Internal-desk IRS box reader. Blank stays blank |
 | `js/desk-mode.js` | `?desk=private` and the page caps |
-| `js/savings.js` | High-card planning estimate. Omitted when the rate is missing |
+| `js/savings.js` | High-card planning estimate. Omitted when the QBI rate or the type 2b payroll split is missing |
 | `js/ocr.js` | Tesseract.js in the browser and in `npm run check` |
 | `js/pdf-images.js` | JPEG and FlateDecode page images |
 | `js/pdf-raster.js` | PDF.js page paint for CCITT, JBIG2, and JPEG2000 |
@@ -145,7 +145,7 @@ npm run fixtures
 npm run check
 ```
 
-Each packet needs `anon: true`, a `filer_ref` like `FILER-121` (no personal name), `tax_year`, `forms_in_packet`, a `scenario`, `fields`, and `expected.high` / `expected.medium`. Omitted booleans are false. Omitted amounts are 0. Omitted `retirement_deduction` and `hours_log_rep` stay unknown: unknown retirement is not $0, and unknown hours do not flag REP.
+Each packet needs `anon: true`, a `filer_ref` like `FILER-121` (no personal name), `tax_year`, `forms_in_packet`, a `scenario`, `fields`, and `expected.high` / `expected.medium`. Omitted booleans are false. Omitted amounts are 0. Omitted `retirement_deduction`, `hours_log_rep`, and `se_income` stay unknown: unknown retirement is not $0, unknown hours do not flag REP, and a missing Schedule SE is not a zero-profit loss.
 
 If the packet has Schedule C income above the SE floor and you do not want a SEP/Solo card, set `retirement_deduction` to a positive number.
 

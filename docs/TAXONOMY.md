@@ -35,13 +35,14 @@ Judgment types that carry a fixed hold-for-planner line:
 | Tag | Who | Target |
 | --- | --- | --- |
 | one-pass | Math or document Highs: 3, 4, 6, 11, 12. Document Highs 17 and 20 use the same tag in this stub. | about 3 minutes |
-| second-eye | Judgment Highs: 1, 2, 7, 9, 13, 14, 15, 18 | about 5 minutes |
+| second-eye | Judgment Highs: 1, 2, 2b, 7, 9, 13, 14, 15, 18 | about 5 minutes |
 | tray-skim | Every Medium card | about 2 minutes |
 
 ## High — must-review
 
 1. **QBI.** A math gap can be High. SSTB never raises confidence. SSTB is a gate only. It does not create a flag, and it does not block a math flag.
 2. **S-corp reasonable compensation.** Distributions are present and officer W-2 is near zero.
+2b. **S-corp conversion (SE).** Separate from type 2 and from type 3. High only, pass tag `second-eye`, never Medium. The business signal is `schedule_c`, or a Schedule SE form, or `se_income` present. A missing amount is not zero. High when that income is at least $100,000, or when an explicit `planning_rc` is present and `se_income − planning_rc` is at least $25,000. The measure is `se_income` only. W-2 Box 1 is not an input. Silent when the packet is already an S corporation or contains Form 1120-S, when it is a multi-owner Form 1065 or K-1 only, when profit is a loss or zero, when Schedule SE is missing, or when the packet is W-2-only (no Schedule C, no Schedule SE, and no `se_income`). A one-year spike does not silence it. SSTB does not raise confidence and does not block the High. Dual High with type 3 is allowed. Present copy does not sequence this check with the retirement-deduction check. A dollar estimate is a High-card sibling only, and only when the packet also has an explicit compensation figure plus an OASDI wage base and separate OASDI and Medicare rates. No default compensation figure. No flat 15.3% factor. SSTB omits the dollar. The estimate does not change the band.
 3. **SEP / Solo.** Self-employment income is above the floor and the retirement deduction is exactly $0. A small ("little") deduction does not meet this floor. Present copy does not choose Solo versus SEP.
 4. **2210 underpayment.** Underpayment math only. A balance due without Form 2210 math is not this flag.
 6. **Wash / loss room.** A wash sale on Form 8949, or Schedule D loss room. Do not flag a harvest when the packet has no lot detail.
@@ -81,7 +82,7 @@ The extract layer returns fields only. Names from the lock:
 
 `has_business`, `home_ownership_doc`, `building_basis`, `pis_or_remodel_year`, `prior_cost_seg`, `dependents_on_return`, `child_dependent`, `dependent_ages`, `retirement_deduction`, `se_income`, `officer_w2`, `distributions`, `qbi_fields`, `form_2210_underpay`, `wash_8949`, `sch_d_loss_room`, `form_8582_suspended`, `cy_passive_income`, `section_179_bonus`, `ti_absorbs`, `hsa_w2_8889_mismatch`, `form_1098t`, `hours_log_rep`, `charitable_sch_a`, `form_8283`, `age_70_5`, `form_8829`, `vehicle_signal`, `large_refund`, `multi_state_signal`, `state_returns_mismatch`, `sehi_gap`, `form_2441_gap`, `form_5695`, `form_6765_or_rd_study`, `nua_signal`, `low_ti_year`, `qsbs_signal`, `form_6252`, `form_8824`, `large_re_gain_no_1031`
 
-The stub also carries the parts those floors need (entity checkboxes, ownership source, QBI worksheet numbers, §179 adds versus amount taken, hours as a number, and so on). The list is in `js/extract.js`. Narrative keys are dropped.
+The stub also carries the parts those floors need (entity checkboxes, ownership source, QBI worksheet numbers, §179 adds versus amount taken, hours as a number, and so on). Type 2b adds `planning_rc` and `one_year_spike`. OASDI wage base, OASDI rate, and Medicare rate sit on the packet beside `planning_rate`; they are savings inputs, not score floors. The list is in `js/extract.js`. Narrative keys are dropped.
 
 ## Where a dollar figure is not in the lock
 
@@ -93,6 +94,7 @@ The lock already states these numbers, and the scorer uses them as written:
 - Building basis: any amount above zero
 - Cost-segregation window: the last three tax years (the return year and the two years before it)
 - Education High: Form 1098-T must be in the packet
+- Type 2b: Schedule SE income of at least $100,000, or an explicit compensation gap of at least $25,000. These are not `STUB_FLOORS`. They do not retune types 1–15 or 18.
 
 Words the lock left qualitative — "above the floor", "near-zero", "material", "little", "large", "well above" — are named constants in `STUB_FLOORS` inside `js/score.js`. Those constants are a research calibration so the stub can run. They are not new taxonomy. Change a constant in that object if the firm locks a dollar figure. Do not rewrite the rule shape to get a different band.
 

@@ -7,8 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractFields } from "../js/extract.js";
-import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS } from "../js/score.js";
-import { FIXED_COPY } from "../js/present.js";
+import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS, TYPE_2B_LOCK } from "../js/score.js";
+import { FIXED_COPY, presentCopy } from "../js/present.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
 import { parseFixtureText } from "../js/intake.js";
 import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR, OCR_WATCH_FLOOR } from "../js/ingest.js";
@@ -79,15 +79,32 @@ for (const item of manifest.fixtures) {
     if (!copyShapeOk(card.copy, card.typeId)) fail(`${item.id} type ${card.typeId} present copy shape`);
     if (card.typeId === "14" && card.copy !== FIXED_COPY[14]) fail(`${item.id} Augusta copy drifted`);
     if (card.typeId === "15" && card.copy !== FIXED_COPY[15]) fail(`${item.id} hire-kids copy drifted`);
+    if (card.typeId === "2b" && card.band === "Medium") fail(`${item.id} raised 2b to Medium`);
+    if (card.typeId === "2b" && card.passTag !== "second-eye") fail(`${item.id} type 2b pass tag is ${card.passTag}`);
+    if (card.typeId === "2b" && card.savings) fail(`${item.id} showed a type 2b dollar without a locked payroll split`);
   }
+  if (item.id === "high-2b-se-only") {
+    if (fixture.fields.schedule_c === true) fail("SE-only fixture includes Schedule C");
+    if (!(fixture.fields.se_income >= 100_000)) fail("SE-only fixture is under $100,000");
+    if ((fixture.forms_in_packet || []).some((form) => /\bschedule\s*c\b/i.test(form))) {
+      fail("SE-only fixture lists Schedule C");
+    }
+    const seOnly = evaluation.cards.find((card) => card.typeId === "2b");
+    if (!seOnly || seOnly.band !== "High" || seOnly.passTag !== "second-eye") {
+      fail("SE-only fixture did not High type 2b");
+    }
+  }
+  const type2b = evaluation.scored.find((row) => row.typeId === "2b");
+  if (!type2b) fail(`${item.id} did not score type 2b`);
+  else if (type2b.band === "Medium") fail(`${item.id} scored 2b as Medium`);
   const rep = evaluation.scored.find((row) => row.typeId === "18");
   if (item.id.startsWith("silent") && rep.band !== "silent") {
     fail(`${item.id} REP band is ${rep.band}`);
   }
 }
 
-if (manifest.fixtures.length < 12 || manifest.fixtures.length > 20) {
-  fail(`fixture count ${manifest.fixtures.length} is outside 12–20`);
+if (manifest.fixtures.length < 12 || manifest.fixtures.length > 21) {
+  fail(`fixture count ${manifest.fixtures.length} is outside 12–21`);
 }
 
 const empty = evaluateFixture({ anon: true, tax_year: 2025, fields: {} }, typesById);
@@ -133,7 +150,7 @@ expectBand("qbi gap below stub minimum", {
 
 expectBand("officer at the near-zero line", {
   s_corp: true, distributions: STUB_FLOORS.minDistributions, officer_w2: STUB_FLOORS.nearZeroOfficerW2,
-}, { 2: "High" });
+}, { 2: "High", "2b": "silent" });
 
 expectBand("officer one dollar over near-zero", {
   s_corp: true, distributions: 80000, officer_w2: STUB_FLOORS.nearZeroOfficerW2 + 1,
@@ -161,7 +178,264 @@ expectBand("cash-balance above the hard floor", {
 
 expectBand("both retirement floors", {
   se_income: 300000, earned_income: 300000, retirement_deduction: 0,
-}, { 3: "High", "3b": "Medium" });
+}, { 3: "High", "3b": "Medium", "2b": "High" });
+
+const schC = { schedule_c: true, retirement_deduction: 1 };
+expectBand("2b high at 100k with schedule c and se", {
+  ...schC, se_income: TYPE_2B_LOCK.seIncome,
+}, { "2b": "High", 2: "silent", 3: "silent" });
+expectBand("2b high se at 100k with no schedule c", {
+  se_income: TYPE_2B_LOCK.seIncome, retirement_deduction: 1,
+}, { "2b": "High", 2: "silent", 3: "silent" });
+expectBand("2b high gap with no schedule c", {
+  se_income: 80_000, planning_rc: 55_000, retirement_deduction: 1,
+}, { "2b": "High", 3: "silent" });
+expectBand("2b silent schedule se form without an amount", {
+  forms_in_packet: ["Schedule SE"], retirement_deduction: 1,
+}, { "2b": "silent" });
+const seFormBlank = bands({ forms_in_packet: ["Schedule SE"] }).find((row) => row.typeId === "2b");
+if (!seFormBlank || seFormBlank.band !== "silent" || !/missing/.test(seFormBlank.reason)) {
+  fail(`Schedule SE form without an amount was ${seFormBlank?.reason}`);
+}
+const seOnlyRow = bands({ se_income: 120_000, retirement_deduction: 1 }).find((row) => row.typeId === "2b");
+if (!seOnlyRow || seOnlyRow.band !== "High" || seOnlyRow.evidence.schedule_c !== false || seOnlyRow.evidence.business_signal !== true) {
+  fail("se_income without Schedule C did not open type 2b");
+}
+expectBand("2b silent one dollar under 100k without a gap", {
+  ...schC, se_income: TYPE_2B_LOCK.seIncome - 1,
+}, { "2b": "silent" });
+expectBand("2b high when the compensation gap is 25k", {
+  ...schC, se_income: 80_000, planning_rc: 80_000 - TYPE_2B_LOCK.rcGap,
+}, { "2b": "High", 3: "silent" });
+expectBand("2b silent when the compensation gap is one dollar under 25k", {
+  ...schC, se_income: 80_000, planning_rc: 80_000 - TYPE_2B_LOCK.rcGap + 1,
+}, { "2b": "silent" });
+expectBand("2b silent se 80k with no compensation gap", {
+  ...schC, se_income: 80_000,
+}, { "2b": "silent", 3: "silent" });
+expectBand("2b silent se 60k minus rc 55k", {
+  schedule_c: true, se_income: 60_000, planning_rc: 55_000, retirement_deduction: 1,
+}, { "2b": "silent" });
+expectBand("2b silent already an s corporation", {
+  s_corp: true, se_income: 180_000, distributions: 90_000, officer_w2: 0, schedule_c: true,
+}, { "2b": "silent", 2: "High" });
+expectBand("2b silent when 1120-S is in the packet", {
+  ...schC, se_income: 180_000, s_corp: false, forms_in_packet: ["Form 1040", "Form 1120-S", "Schedule C"],
+}, { "2b": "silent", 2: "silent" });
+expectBand("2b silent multi-owner 1065", {
+  ...schC, se_income: 180_000, forms_in_packet: ["Form 1065", "Schedule C", "Schedule SE"],
+}, { "2b": "silent" });
+expectBand("2b silent k1 only", {
+  k1_only: true, se_income: 180_000, earned_income: 180_000,
+}, { "2b": "silent" });
+expectBand("2b silent loss", {
+  schedule_c: true, se_income: -12_000, earned_income: 200_000, planning_rc: -40_000,
+}, { "2b": "silent" });
+expectBand("2b silent near-zero profit", {
+  schedule_c: true, se_income: 0, planning_rc: 0, earned_income: 90_000,
+}, { "2b": "silent" });
+expectBand("2b silent missing se is not zero", {
+  schedule_c: true, earned_income: 200_000, planning_rc: 50_000,
+}, { "2b": "silent" });
+expectBand("2b silent w2 only", {
+  earned_income: 180_000, forms_in_packet: ["Form W-2"],
+}, { "2b": "silent" });
+expectBand("2b ignores w-2 box 1 when se is under the floor", {
+  ...schC, se_income: 80_000, earned_income: 250_000,
+}, { "2b": "silent" });
+expectBand("2b high uses se income not w-2 box 1", {
+  ...schC, se_income: 120_000, earned_income: 10_000,
+}, { "2b": "High" });
+expectBand("2b high with a one-year spike", {
+  ...schC, se_income: 120_000, one_year_spike: true,
+}, { "2b": "High" });
+expectBand("2b sstb stays high and does not become medium", {
+  schedule_c: true,
+  se_income: 130_000,
+  retirement_deduction: 1,
+  qbi_fields: { qbi_income: 130_000, tentative_deduction: 26_000, deduction_taken: 26_000, sstb: true },
+}, { "2b": "High", 1: "silent" });
+expectBand("2b dual high with sep does not change type 3", {
+  schedule_c: true, se_income: 110_000, retirement_deduction: 0, earned_income: 110_000,
+}, { "2b": "High", 3: "High", "3b": "silent", 2: "silent" });
+
+const spikeRow = bands({ ...schC, se_income: 120_000, one_year_spike: true }).find((row) => row.typeId === "2b");
+const quietRow = bands({ ...schC, se_income: 120_000, one_year_spike: false }).find((row) => row.typeId === "2b");
+if (!spikeRow || spikeRow.band !== "High" || spikeRow.passTag !== "second-eye" || spikeRow.lane !== "must-review") {
+  fail("2b spike row was not a second-eye High");
+}
+if (!quietRow || quietRow.band !== spikeRow.band) fail("a one-year spike changed the 2b band");
+if (spikeRow.evidence.earned_income != null) fail("2b evidence carried W-2 box 1");
+
+const missingSe = bands({ schedule_c: true, planning_rc: -30_000, earned_income: 80_000 }).find((row) => row.typeId === "2b");
+if (!missingSe || missingSe.band !== "silent" || !/missing/.test(missingSe.reason) || missingSe.passTag != null) {
+  fail(`missing SE reason was ${missingSe?.reason}`);
+}
+const lossSe = bands({ schedule_c: true, se_income: -4_000, earned_income: 250_000 }).find((row) => row.typeId === "2b");
+if (!lossSe || lossSe.band !== "silent" || !/loss or near-zero/i.test(lossSe.reason)) {
+  fail(`loss reason was ${lossSe?.reason}`);
+}
+const smallProfit = bands({ schedule_c: true, se_income: 100, planning_rc: 0 }).find((row) => row.typeId === "2b");
+if (!smallProfit || smallProfit.band !== "silent" || /loss or near-zero/i.test(smallProfit.reason)) {
+  fail("a small positive profit was classed as a loss");
+}
+
+const copy2b = presentCopy({ typeId: "2b", band: "High" }, { schedule_c: true, se_income: 120_000 });
+if (/\b(convert|qualify|save|advise|advice)\b/i.test(copy2b || "")) fail(`2b present copy used a banned verb: ${copy2b}`);
+if (/\bSEP\b|Solo|\bthen\b|type 3/i.test(copy2b || "")) fail("2b present copy sequences with type 3");
+if (copy2b !== presentCopy({ typeId: "2b", band: "High" }, { schedule_c: true, se_income: 80_000, planning_rc: 50_000 })) {
+  fail("2b present copy changed with the packet");
+}
+
+const floorSnapshot = {
+  seIncome: 50_000,
+  nearZeroOfficerW2: 5_000,
+  minDistributions: 10_000,
+  qbiGapMin: 500,
+  materialAdds: 25_000,
+  little179Ratio: 0.1,
+  cbEarnedIncome: 250_000,
+  priorYearCharitable: 5_000,
+  repHours: 750,
+  costSegTaxYears: 3,
+  largeRefund: 10_000,
+  estimatesMultiple: 1.5,
+  estimatesExcess: 10_000,
+};
+if (Object.keys(STUB_FLOORS).length !== Object.keys(floorSnapshot).length) fail("STUB_FLOORS gained or lost a key");
+for (const [key, value] of Object.entries(floorSnapshot)) {
+  if (STUB_FLOORS[key] !== value) fail(`floor drift on ${key}`);
+}
+if (TYPE_2B_LOCK.seIncome !== 100_000 || TYPE_2B_LOCK.rcGap !== 25_000) fail("type 2b lock drifted");
+
+const payrollSplit = { oasdi_wage_base: 176_100, oasdi_rate: 0.124, medicare_rate: 0.029 };
+const aboveBaseFields = {
+  schedule_c: true,
+  se_income: 200_000,
+  planning_rc: 60_000,
+  retirement_deduction: 1,
+  qbi_fields: { sstb: false },
+};
+const aboveBase = evaluateFixture({
+  anon: true,
+  tax_year: 2025,
+  filer_ref: "FILER-220",
+  fields: aboveBaseFields,
+  ...payrollSplit,
+}, typesById);
+const aboveCard = aboveBase.cards.find((card) => card.typeId === "2b");
+if (!aboveCard || aboveCard.band !== "High" || aboveCard.passTag !== "second-eye") fail("locked payroll split changed the 2b band");
+if (aboveCard?.savings?.point !== 18456.4) fail(`2b savings were ${aboveCard?.savings?.point}, not the wage-base split`);
+if (aboveCard?.savings?.point === 21_420) fail("2b savings used a flat 15.3% factor");
+if (aboveCard?.savings?.label !== HUMAN_GATE_LABEL) fail("2b savings omitted the human-gate label");
+if (aboveCard?.savings?.confidence !== 0.9) fail(`2b confidence was ${aboveCard?.savings?.confidence}`);
+if (aboveCard?.savings?.low != null || aboveCard?.savings?.high != null) fail("2b savings grew a range");
+if (/\$\s?\d|convert|qualif|save|advise/i.test(`${aboveCard?.savings?.label} ${aboveCard?.savings?.basis}`)) {
+  fail("2b savings block used a dollar or an advice verb");
+}
+
+const noSplit = evaluateFixture({
+  anon: true,
+  tax_year: 2025,
+  filer_ref: "FILER-221",
+  fields: { schedule_c: true, se_income: 150_000, retirement_deduction: 1 },
+  planning_rate: 0.24,
+}, typesById);
+const noSplitCard = noSplit.cards.find((card) => card.typeId === "2b");
+if (!noSplitCard || noSplitCard.band !== "High" || noSplitCard.savings) fail("2b High without RC and rates still showed a dollar");
+
+const ratesWithoutRc = evaluateFixture({
+  anon: true,
+  tax_year: 2025,
+  filer_ref: "FILER-222",
+  fields: { schedule_c: true, se_income: 150_000, retirement_deduction: 1 },
+  ...payrollSplit,
+}, typesById);
+if (ratesWithoutRc.cards.find((card) => card.typeId === "2b")?.savings) fail("2b invented a compensation figure");
+
+const sstbDollars = evaluateFixture({
+  anon: true,
+  tax_year: 2025,
+  filer_ref: "FILER-223",
+  fields: {
+    ...aboveBaseFields,
+    qbi_fields: { qbi_income: 200_000, tentative_deduction: 40_000, deduction_taken: 40_000, sstb: true },
+  },
+  ...payrollSplit,
+}, typesById);
+const sstbCard = sstbDollars.cards.find((card) => card.typeId === "2b");
+if (!sstbCard || sstbCard.band !== "High" || sstbCard.savings) fail("SSTB raised confidence or showed a 2b dollar");
+if (sstbCard?.passTag !== "second-eye") fail("SSTB changed the 2b pass tag");
+
+const gapDollars = evaluateFixture({
+  anon: true,
+  tax_year: 2025,
+  filer_ref: "FILER-224",
+  fields: { schedule_c: true, se_income: 80_000, planning_rc: 50_000, retirement_deduction: 1 },
+  ...payrollSplit,
+}, typesById);
+const gapCard = gapDollars.cards.find((card) => card.typeId === "2b");
+if (!gapCard || gapCard.band !== "High") fail("25k-plus gap was not High once rates were present");
+if (!(gapCard?.savings?.point > 0) || gapCard.savings.confidence !== 0.9) fail("gap path omitted a locked dollar or raised confidence");
+
+if (savingsFor({ typeId: "2b", band: "silent" }, aboveBaseFields, payrollSplit)) fail("silent 2b emitted savings");
+if (savingsFor({ typeId: "2b", band: "Medium" }, aboveBaseFields, payrollSplit)) fail("Medium 2b emitted savings");
+if (savingsFor({ typeId: "2b", band: "High" }, aboveBaseFields, { oasdi_wage_base: 176_100, oasdi_rate: 0.124 })) {
+  fail("2b showed a dollar with the Medicare rate missing");
+}
+
+function codeWithoutComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+const savingsSource = codeWithoutComments(fs.readFileSync(path.join(root, "js/savings.js"), "utf8"));
+if (/0\.153|15\.3/.test(savingsSource)) fail("savings.js contains a flat 15.3% factor");
+const scoreSourceEarly = codeWithoutComments(fs.readFileSync(path.join(root, "js/score.js"), "utf8"));
+if (/0\.153|15\.3/.test(scoreSourceEarly)) fail("score.js contains a flat 15.3% factor");
+
+const ingested2b = parseDocumentText([
+  "ANON: TRUE",
+  "FILER: FILER-225",
+  "TAX YEAR: 2025",
+  "SCHEDULE C: YES",
+  "SE INCOME: 200000",
+  "RETIREMENT DEDUCTION: 1",
+  "PLANNING RC: 60000",
+  "OASDI WAGE BASE: 176100",
+  "OASDI RATE: 0.124",
+  "MEDICARE RATE: 0.029",
+  "ONE YEAR SPIKE: YES",
+].join("\n"), { sourceKind: "text" });
+if (ingested2b.fields.planning_rc !== 60_000) fail("planning RC was not read");
+if (ingested2b.fields.se_income !== 200_000) fail("SE income label was not read");
+if (ingested2b.fields.one_year_spike !== true) fail("one-year spike was not read");
+if (ingested2b.oasdi_wage_base !== 176_100 || ingested2b.oasdi_rate !== 0.124 || ingested2b.medicare_rate !== 0.029) {
+  fail("payroll split labels were not stored on the packet");
+}
+if ("oasdi_wage_base" in ingested2b.fields || "oasdi_rate" in ingested2b.fields || "medicare_rate" in ingested2b.fields) {
+  fail("payroll split was copied into the score field bag");
+}
+const ingestedEval = evaluateFixture(ingested2b, typesById);
+const ingestedCard = ingestedEval.cards.find((card) => card.typeId === "2b");
+if (!ingestedCard || ingestedCard.band !== "High" || ingestedCard.savings?.point !== 18456.4) {
+  fail(`ingested 2b savings were ${ingestedCard?.savings?.point}`);
+}
+if (ingestedCard.passTag !== "second-eye") fail("ingested 2b pass tag drifted");
+
+const omittedRc = parseDocumentText([
+  "ANON: TRUE",
+  "FILER: FILER-226",
+  "TAX YEAR: 2025",
+  "SCHEDULE C: YES",
+  "SE INCOME: 150000",
+  "PLANNING RC: —",
+  "OASDI WAGE BASE: 176100",
+  "OASDI RATE: 0.124",
+  "MEDICARE RATE: 0.029",
+].join("\n"), { sourceKind: "text" });
+if ("planning_rc" in omittedRc.fields) fail("blank planning RC was stored as zero");
+if (evaluateFixture(omittedRc, typesById).cards.find((card) => card.typeId === "2b")?.savings) {
+  fail("blank planning RC still produced a dollar");
+}
 
 expectBand("wash only", { wash_8949: true }, { 6: "High" });
 expectBand("loss room only", { sch_d_loss_room: true }, { 6: "High" });

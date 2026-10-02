@@ -8,9 +8,10 @@
   "forms_in_packet": [
     "Form 1040",
     "Schedule C",
+    "Schedule SE",
     "Form 4562"
   ],
-  "scenario": "Equipment additions are material, section 179 and bonus taken are zero, and taxable income is marked as able to absorb more. Retirement deduction is already on the return.",
+  "scenario": "Equipment additions are material, section 179 and bonus taken are zero, and taxable income is marked as able to absorb more. Schedule SE net earnings are exactly $100,000, so type 2b is also must-review. Retirement deduction is already on the return, so SEP/Solo stays quiet. No compensation figure or payroll rates are on the packet.",
   "fields": {
     "schedule_c": true,
     "se_income": 100000,
@@ -30,6 +31,7 @@
   },
   "expected": {
     "high": [
+      "2b",
       "9"
     ],
     "medium": []

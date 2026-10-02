@@ -55,6 +55,14 @@ const TEMPLATES = {
       "hold for planner review.",
     );
   },
+  "2b"() {
+    return line(
+      "Schedule SE income is at the locked floor, or an explicit compensation figure on the packet leaves a locked gap.",
+      "Schedule C or Schedule SE.",
+      "an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, or missing Schedule SE stays silent. Wages with no Schedule C, no Schedule SE, and no self-employment income stay silent. A one-year spike does not silence this check. SSTB does not raise confidence. This check does not order the retirement-deduction review.",
+      "hold for planner review.",
+    );
+  },
   3() {
     return line(
       "self-employment income is above the research floor and the retirement deduction is zero.",

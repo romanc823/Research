@@ -60,7 +60,7 @@ const fixtures = [
     group: "high",
     filer_ref: "FILER-103",
     forms_in_packet: ["Form 1040", "Schedule C", "Schedule SE", "Schedule 1"],
-    scenario: "Schedule C net income is above the SEP/Solo floor and the retirement deduction line is exactly zero. Earned income stays under the cash-balance floor. QBI deduction taken matches the tentative figure.",
+    scenario: "Schedule C and Schedule SE. Net earnings are at least $100,000, so type 2b is must-review beside the retirement check. The retirement deduction line is exactly zero. Earned income stays under the cash-balance floor. No compensation figure or payroll rates are on the packet, so no dollar estimate is attached. QBI deduction taken matches the tentative figure.",
     fields: {
       schedule_c: true,
       se_income: 110000,
@@ -68,7 +68,23 @@ const fixtures = [
       retirement_deduction: 0,
       qbi_fields: qbi(110000),
     },
-    expected: { high: ["3"], medium: [] },
+    expected: { high: ["2b", "3"], medium: [] },
+  },
+  {
+    id: "high-2b-se-only",
+    label: "Schedule SE — net earnings at least $100,000, no Schedule C",
+    group: "high",
+    filer_ref: "FILER-121",
+    forms_in_packet: ["Form 1040", "Schedule SE"],
+    scenario: "Schedule SE net earnings are $120,000. Schedule C is not in the packet. Type 2b is must-review from the self-employment amount. The retirement deduction is already present, so SEP/Solo stays quiet. No compensation figure or payroll rates are on the packet, so no dollar estimate is attached.",
+    fields: {
+      schedule_c: false,
+      se_income: 120000,
+      earned_income: 40000,
+      retirement_deduction: 8000,
+      qbi_fields: qbi(120000),
+    },
+    expected: { high: ["2b"], medium: [] },
   },
   {
     id: "high-04-2210-underpayment",
@@ -122,8 +138,8 @@ const fixtures = [
     label: "Schedule C — material additions, little §179, income absorbs",
     group: "high",
     filer_ref: "FILER-107",
-    forms_in_packet: ["Form 1040", "Schedule C", "Form 4562"],
-    scenario: "Equipment additions are material, section 179 and bonus taken are zero, and taxable income is marked as able to absorb more. Retirement deduction is already on the return.",
+    forms_in_packet: ["Form 1040", "Schedule C", "Schedule SE", "Form 4562"],
+    scenario: "Equipment additions are material, section 179 and bonus taken are zero, and taxable income is marked as able to absorb more. Schedule SE net earnings are exactly $100,000, so type 2b is also must-review. Retirement deduction is already on the return, so SEP/Solo stays quiet. No compensation figure or payroll rates are on the packet.",
     fields: {
       schedule_c: true,
       se_income: 100000,
@@ -133,7 +149,7 @@ const fixtures = [
       section_179_bonus: { adds_cost: 180000, amount_taken: 0 },
       ti_absorbs: true,
     },
-    expected: { high: ["9"], medium: [] },
+    expected: { high: ["2b", "9"], medium: [] },
   },
   {
     id: "high-11-hsa-mismatch",
