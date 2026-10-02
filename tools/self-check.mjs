@@ -12,7 +12,10 @@ import { FIXED_COPY } from "../js/present.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
 import { parseFixtureText } from "../js/intake.js";
 import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR, OCR_WATCH_FLOOR } from "../js/ingest.js";
-import { buildFlateGrayPdf, buildImagePdf, buildTextPdf, buildUnsupportedImagePdf, extractPdfText } from "../js/pdf-text.js";
+import { buildFlateGrayPdf, buildImagePdf, buildMultiPageTextPdf, buildTextPdf, buildUnsupportedImagePdf, extractPdfText } from "../js/pdf-text.js";
+import { countPdfPages, parseToUnicode, textFromEncodedOperators } from "../js/pdf-unicode.js";
+import { PUBLIC_PAGE_CAP, PRIVATE_PAGE_CAP } from "../js/desk-mode.js";
+import { HUMAN_GATE_LABEL, SAVINGS_CONFIDENCE_FLOOR, savingsFor } from "../js/savings.js";
 import { extractPdfPageImages } from "../js/pdf-images.js";
 import { decodeGrayPng } from "../js/png-gray.js";
 import { AUGUSTA_PDF_LINES, FAX_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
@@ -711,7 +714,231 @@ async function checkIngest() {
   }
 }
 
+const FORM_PACKET = [
+  "Taxpayer 123-45-6789",
+  "Form W-2 Wage and Tax Statement 2025",
+  "1 Wages, tips, other compensation 80,000.00",
+  "2 Federal income tax withheld 9,000.00",
+  "3 Social security wages 80,000.00",
+  "4 Social security tax withheld 4,960.00",
+  "5 Medicare wages and tips 80,000.00",
+  "6 Medicare tax withheld 1,160.00",
+  "12a D 5,000.00",
+  "12b DD 4,200.00",
+  "1 Wages, tips, other compensation",
+  "FORM SSA-1042S — SOCIAL SECURITY BENEFIT STATEMENT 2025",
+  "Box 5. Net Benefits for 2025 (Box 3 minus Box 4) $ 12,000.00",
+  "2025 Form 1099-R",
+  "1 Gross distribution $ 15,000.00",
+  "Form 1099-INT",
+  "1 Interest income $ 400.00",
+  "Form 1099-DIV",
+  "1a Total ordinary dividends $ 250.00",
+  "Schedule SE (Form 1040)",
+  "Net earnings from self-employment 88,000.00",
+  "Schedule 1 (Form 1040)",
+  "Self-employed SEP, SIMPLE, and qualified plans 0.00",
+  "QBI INCOME: 80000",
+  "TENTATIVE DEDUCTION: 16000",
+  "DEDUCTION TAKEN: 4000",
+  "MARGINAL RATE: 0.24",
+].join("\n");
+
+function checkPrivateDesk() {
+  try {
+    parseDocumentText(FORM_PACKET, { sourceKind: "text" });
+    fail("public desk accepted a form packet without ANON");
+  } catch (error) {
+    if (!/SSN or EIN|ANON: TRUE/.test(error.message)) fail(`public form refusal was ${error.message}`);
+  }
+  const formOnly = FORM_PACKET.replace("Taxpayer 123-45-6789\n", "");
+  try {
+    parseDocumentText(formOnly, { sourceKind: "text" });
+    fail("public desk accepted a form packet without ANON");
+  } catch (error) {
+    if (!/ANON: TRUE/.test(error.message)) fail(`public anon refusal was ${error.message}`);
+  }
+  try {
+    parseDocumentText("ANON: TRUE\nFILER: FILER-307\nMEMO: 123-45-6789\n", { sourceKind: "text" });
+    fail("public desk accepted an SSN");
+  } catch (error) {
+    if (!/SSN or EIN/.test(error.message)) fail(`public SSN refusal was ${error.message}`);
+  }
+
+  const packet = parseDocumentText(FORM_PACKET, { sourceKind: "text", privateMode: true, fileName: "123-45-6789.pdf" });
+  const packed = JSON.stringify(packet);
+  if (packed.includes("123-45-6789")) fail("private packet kept an SSN");
+  if (packet.anon === true) fail("private form packet was marked anonymized");
+  if (packet.ephemeral !== true) fail("private packet was not ephemeral");
+  if (packet.filer_ref !== "FILER-LOCAL") fail("private packet invented a named filer");
+  if (packet.fields.earned_income !== 80000) fail("W-2 box 1 was not read");
+  if (packet.fields.se_income !== 88000) fail("Schedule SE net earnings were not read");
+  if (packet.fields.retirement_deduction !== 0) fail("explicit SEP zero was not read");
+  if (packet.fields.trad_ira_or_401k !== true) fail("W-2 box 12 code D was not read");
+  if (packet.fields.ira_or_1099r !== true) fail("1099-R gross was not read");
+  if (packet.fields.qbi_fields?.deduction_taken !== 4000) fail("QBI lines were not read");
+  if (packet.planning_rate !== 0.24) fail("explicit marginal rate was not read");
+  if (!packet.ingest.accepted.some((row) => row.field === "ssa_net_benefits" && String(row.evidence).includes("12000"))) {
+    fail("SSA net benefits were not kept");
+  }
+  if (!packet.ingest.accepted.some((row) => row.field === "1099int_interest")) fail("1099-INT was not kept");
+  if (!packet.ingest.accepted.some((row) => row.field === "1099div_ordinary")) fail("1099-DIV was not kept");
+  if (!packet.ingest.accepted.some((row) => row.field === "w2_box2_withheld")) fail("W-2 boxes 2-6 were not kept");
+  if (packet.ingest.dropped.some((row) => /123-45-6789/.test(row.evidence || ""))) fail("dropped line kept an SSN");
+  const blankWage = packet.ingest.dropped.find((row) => row.evidence === "1 Wages, tips, other compensation");
+  if (!blankWage) fail("blank W-2 box 1 was not omitted");
+  if ("w2_box2_withheld" in packet.fields) fail("withholding was copied into the score contract");
+
+  const scored = scoreAll(extractFields(packet));
+  if (bandOf(scored, "3") !== "High") fail("private form packet did not score SEP / Solo");
+  if (bandOf(scored, "1") !== "High") fail("private form packet did not score the QBI gap");
+  if (bandOf(scored, "3b") !== "silent") fail("W-2 wages under the cash-balance floor scored");
+  const pass3 = scored.find((row) => row.typeId === "3");
+  if (pass3.passTag !== "one-pass") fail("savings path changed the SEP pass tag");
+
+  const evaluated = evaluateFixture(packet, typesById);
+  const qbiCard = evaluated.cards.find((card) => card.typeId === "1");
+  const sepCard = evaluated.cards.find((card) => card.typeId === "3");
+  if (!qbiCard || qbiCard.savings?.point !== 2880) fail(`QBI savings were ${qbiCard?.savings?.point}`);
+  if (qbiCard.savings.label !== HUMAN_GATE_LABEL) fail("savings omitted the human-gate label");
+  if (qbiCard.savings.confidence < SAVINGS_CONFIDENCE_FLOOR) fail("savings confidence was under the floor");
+  if (qbiCard.passTag !== "second-eye") fail("savings changed the QBI pass tag");
+  if (/\$\s?\d|you should|qualif|will save|guaranteed|tax savings/i.test(qbiCard.copy || "")) {
+    fail("present copy picked up a savings dollar or advice verb");
+  }
+  if (/you should|qualif|will save|guaranteed|tax savings/i.test(`${qbiCard.savings.label} ${qbiCard.savings.basis}`)) {
+    fail("savings block used an advice verb");
+  }
+  if (sepCard?.savings) fail("SEP card invented a savings figure");
+  if (evaluated.cards.some((card) => card.band === "Medium" && card.savings)) fail("a Medium card showed savings");
+  if (evaluated.scored.some((row) => row.band === "silent" && row.savings)) fail("a silent row carried savings");
+
+  const noRate = evaluateFixture({
+    anon: true,
+    tax_year: 2025,
+    filer_ref: "FILER-910",
+    fields: {
+      qbi_fields: { qbi_income: 80000, tentative_deduction: 16000, deduction_taken: 4000 },
+      schedule_c: true,
+      home_ownership_source: "1098",
+      vehicle_signal: true,
+    },
+  }, typesById);
+  const bareQbi = noRate.cards.find((card) => card.typeId === "1");
+  const augusta = noRate.cards.find((card) => card.typeId === "14");
+  const vehicle = noRate.cards.find((card) => card.typeId === "8b");
+  if (bareQbi?.band !== "High" || bareQbi.savings) fail("QBI High without a rate still showed savings");
+  if (!augusta || augusta.copy !== FIXED_COPY[14] || augusta.savings) fail("Augusta copy or savings drifted");
+  if (augusta.passTag !== "second-eye") fail("Augusta pass tag drifted");
+  if (vehicle?.band !== "Medium" || vehicle.savings) fail("vehicle tray showed a dollar");
+  if (savingsFor({ typeId: "1", band: "silent" }, noRate.fields, { planning_rate: 0.24 })) {
+    fail("silent QBI emitted savings");
+  }
+
+  const lowOcr = parseDocumentText("1 Wages, tips, other compensation 80,000.00\n", {
+    sourceKind: "pdf-ocr",
+    privateMode: true,
+    ocr: true,
+    confidences: [0.5],
+  });
+  if ("earned_income" in lowOcr.fields) fail("low-confidence W-2 box 1 was stored");
+
+  const watch = parseDocumentText([
+    "BUILDING BASIS: 400000",
+    "HOME OWNERSHIP SOURCE: 1098",
+    "DEPENDENT RELATIONSHIP: DAUGHTER",
+  ].join("\n"), {
+    sourceKind: "pdf-ocr",
+    privateMode: true,
+    ocr: true,
+    confidences: [0.85, 0.85, 0.85],
+  });
+  if ("building_basis" in watch.fields || "home_ownership_source" in watch.fields || "dependent_relationship" in watch.fields) {
+    fail("private mode lowered the watch floor");
+  }
+  if (watch.ingest.ocrWatchFloor !== OCR_WATCH_FLOOR || OCR_WATCH_FLOOR !== 0.9) fail("watch floor is no longer 0.9");
+
+  const cmap = parseToUnicode("1 beginbfchar\n<0048> <0041>\nendbfchar\n");
+  const decoded = textFromEncodedOperators("BT\n/F1 10 Tf\n1 0 0 -1 72 700 Tm\n[<0048>] TJ\nET\n", new Map([["F1", cmap]]));
+  if (decoded !== "A") fail(`encoded text decoder returned ${JSON.stringify(decoded)}`);
+
+  const presentSource = fs.readFileSync(path.join(root, "js/present.js"), "utf8");
+  const scoreSource = fs.readFileSync(path.join(root, "js/score.js"), "utf8");
+  if (/savingsFor|Planning estimate|from \"\.\/savings\.js\"/.test(presentSource)) {
+    fail("present.js copy gained a savings path");
+  }
+  if (/savingsFor|planning_rate|from \"\.\/savings\.js\"/.test(scoreSource)) {
+    fail("score.js gained a savings path");
+  }
+
+  const uploadHits = [];
+  const bannedUpload = [/XMLHttpRequest/, /sendBeacon/, /new WebSocket/, /FormData/, /method\s*:\s*["'](?:POST|PUT|PATCH)["']/];
+  for (const file of fs.readdirSync(path.join(root, "js"))) {
+    if (!file.endsWith(".js")) continue;
+    const source = fs.readFileSync(path.join(root, "js", file), "utf8");
+    for (const rule of bannedUpload) {
+      if (rule.test(source)) uploadHits.push(`${file} ${rule}`);
+    }
+  }
+  const serve = fs.readFileSync(path.join(root, "tools/serve.mjs"), "utf8");
+  if (/req\.method|POST|PUT/.test(serve) && /writeFile|appendFile/.test(serve)) {
+    uploadHits.push("serve.mjs writes a request body");
+  }
+  for (const file of ["ingest.js", "ingest-fields.js", "form-layout.js", "pdf-text.js", "pdf-unicode.js", "savings.js"]) {
+    const source = fs.readFileSync(path.join(root, "js", file), "utf8");
+    if (/\bfetch\s*\(/.test(source)) uploadHits.push(`${file} fetches`);
+  }
+  if (uploadHits.length) fail(`packet egress: ${uploadHits.join("; ")}`);
+}
+
+async function checkPageCaps() {
+  const formLines = FORM_PACKET.split("\n").filter((line) => line !== "Taxpayer 123-45-6789");
+  const one = buildTextPdf(formLines);
+  if (countPdfPages(one) !== 1) fail("single-page PDF count drifted");
+  const scored = await ingestDocument({ name: "form.pdf", bytes: one, privateMode: true });
+  if (scored.fields.se_income !== 88000 || scored.fields.retirement_deduction !== 0) {
+    fail("private PDF form layout did not score");
+  }
+  try {
+    await ingestDocument({ name: "form.pdf", bytes: one, privateMode: false });
+    fail("public desk ingested a form PDF without ANON");
+  } catch (error) {
+    if (!/ANON: TRUE/.test(error.message)) fail(`public PDF refusal was ${error.message}`);
+  }
+
+  const overPublic = buildMultiPageTextPdf([
+    ["ANON: TRUE", "FILER: FILER-940", "SCHEDULE C: YES"],
+    ...Array.from({ length: PUBLIC_PAGE_CAP }, () => [" "]),
+  ]);
+  if (countPdfPages(overPublic) !== PUBLIC_PAGE_CAP + 1) fail("public over-cap page count drifted");
+  try {
+    await ingestDocument({ name: "long.pdf", bytes: overPublic, privateMode: false });
+    fail("public desk accepted a PDF over the page cap");
+  } catch (error) {
+    if (!String(error.message).includes(`${PUBLIC_PAGE_CAP + 1} pages`) || !/not filled with zero/.test(error.message)) {
+      fail(`public page-cap refusal was ${error.message}`);
+    }
+  }
+  const underPrivate = await ingestDocument({ name: "long.pdf", bytes: overPublic, privateMode: true });
+  if (underPrivate.fields.schedule_c !== true) fail("a blank extra page changed Schedule C");
+  if (underPrivate.fields.retirement_deduction != null && "retirement_deduction" in underPrivate.fields) {
+    fail("blank pages stored a retirement amount");
+  }
+
+  const overPrivate = buildMultiPageTextPdf(Array.from({ length: PRIVATE_PAGE_CAP + 1 }, () => [" "]));
+  try {
+    await ingestDocument({ name: "too-long.pdf", bytes: overPrivate, privateMode: true });
+    fail("internal desk accepted a PDF over 100 pages");
+  } catch (error) {
+    if (!String(error.message).includes(`${PRIVATE_PAGE_CAP + 1} pages`) || !/internal desk/.test(error.message)) {
+      fail(`private page-cap refusal was ${error.message}`);
+    }
+  }
+}
+
 try {
+  checkPrivateDesk();
+  await checkPageCaps();
   await checkIngest();
 } finally {
   await shutdownOcr();

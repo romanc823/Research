@@ -1,6 +1,9 @@
+import { isPrivateDesk } from "./desk-mode.js";
 import { evaluateFixture, matchExpectation } from "./evaluate.js";
 import { ingestDocument } from "./ingest.js";
 import { parseFixtureText } from "./intake.js";
+
+const privateDesk = isPrivateDesk(window.location.search);
 
 const PASS_HINT = {
   "one-pass": "One-pass · about 3 min",
@@ -37,6 +40,35 @@ function esc(value) {
     '"': "&quot;",
     "'": "&#39;",
   }[ch]));
+}
+
+function renderBanner() {
+  const banner = document.querySelector("#desk-banner");
+  const blurb = document.querySelector("#mast-blurb");
+  if (!banner) return;
+  if (!privateDesk) {
+    banner.hidden = true;
+    banner.textContent = "";
+    return;
+  }
+  banner.hidden = false;
+  banner.innerHTML = "<strong>Internal desk.</strong> This packet stays in this browser’s memory. It is not saved, not uploaded, and not written to the public site. A planning estimate is for a person to review. No e-file. <a href=\"./\">Return to the public desk</a>";
+  if (blurb) blurb.textContent = "Internal desk. The packet stays in this tab. No e-file. No pricing.";
+}
+
+function money(value) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+}
+
+function renderSavings(card) {
+  if (!card || card.band !== "High" || !card.savings || card.savings.point == null) return "";
+  const savings = card.savings;
+  return `<div class="savings">
+    <span class="savings-label">${esc(savings.label)}</span>
+    <span>${esc(money(savings.point))}</span>
+    <span class="savings-basis">${esc(savings.basis)}</span>
+    <span class="savings-conf">Confidence ${esc(Number(savings.confidence).toFixed(2))}</span>
+  </div>`;
 }
 
 function showValue(value) {
@@ -89,7 +121,10 @@ function renderRail() {
     <select id="fixture-select">${options}</select>
     <div class="drop" id="drop-zone">
       <p><strong>Drop a packet</strong></p>
-      <p>Fixture JSON, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. Fax, JBIG2, and JPEG2000 scans are rasterized in the browser first. Low-confidence lines are omitted. Blank amounts stay blank.</p>
+      <p>${privateDesk
+        ? "Internal desk. Drop a form packet or a fixture. It stays in this tab: nothing is uploaded and nothing is saved. Blank amounts stay blank. Reload clears the packet."
+        : "Fixture JSON, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. Fax, JBIG2, and JPEG2000 scans are rasterized in the browser first. Low-confidence lines are omitted. Blank amounts stay blank. The public desk still requires ANON: TRUE and refuses an SSN or EIN."}</p>
+      ${privateDesk ? "" : "<p><a href=\"?desk=private\">Open the internal desk</a> on a machine you control. Do not use it to put a live packet into this public site.</p>"}
       <label class="file-btn">
         Choose file
         <input id="file-input" type="file" accept=".json,.pdf,.png,.jpg,.jpeg,application/json,application/pdf,image/png,image/jpeg" />
@@ -179,6 +214,7 @@ function renderStage() {
         <span class="card-name">${esc(card.name)}</span>
         <span class="card-pass">${esc(PASS_HINT[card.passTag] || card.passTag)}</span>
         <span class="card-copy">${esc(card.copy || card.error || "")}</span>
+        ${renderSavings(card)}
       </button>`;
     }).join("")
     : `<p class="empty-lane">${state.tab === "high"
@@ -196,6 +232,7 @@ function renderStage() {
       </dl>
       <h4>Present copy</h4>
       <blockquote>${esc(detail.copy || detail.error || "—")}</blockquote>
+      ${detail.band === "High" ? renderSavings(detail) : ""}
       <h4>Fields that tripped the floor</h4>
       ${renderEvidence(detail.evidence)}
       <h4>Trigger</h4>
@@ -220,6 +257,7 @@ function renderStage() {
       <h2>${esc(fixture.label || fixture.id)}</h2>
       <p class="forms">${esc(forms || "No form list")}</p>
       <p class="scenario">${esc(fixture.scenario || "")}</p>
+      ${fixture.ephemeral ? "<p class=\"scenario\">In memory only. Reload clears this packet. It is not saved.</p>" : ""}
       ${renderIngest(fixture)}
       <p class="packet-check ${check && !check.ok ? "is-bad" : ""}">${esc(checkLine)}</p>
     </header>
@@ -312,14 +350,17 @@ async function takeFile(file) {
   const json = lower.endsWith(".json") || file.type === "application/json";
   if (!json) showDropMessage("Reading packet… OCR stays in this browser.");
   const fixture = json
-    ? parseFixtureText(await file.text())
+    ? parseFixtureText(await file.text(), { privateMode: privateDesk })
     : await ingestDocument({
       name: file.name,
       type: file.type,
       bytes: new Uint8Array(await file.arrayBuffer()),
+      privateMode: privateDesk,
     });
   ingestFixture(fixture);
 }
+
+renderBanner();
 
 async function boot() {
   try {

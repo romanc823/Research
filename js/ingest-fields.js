@@ -6,6 +6,8 @@
  */
 
 import { FIELD_KEYS } from "./extract.js";
+import { parseFormLayout } from "./form-layout.js";
+import { explicitOrdinaryRate } from "./savings.js";
 
 export const CONFIDENCE_FLOOR = 0.8;
 export const OCR_WATCH_FLOOR = 0.9;
@@ -33,6 +35,20 @@ function roundConf(value) {
 
 const SSN = /\b\d{3}-\d{2}-\d{4}\b/;
 const EIN = /\b\d{2}-\d{7}\b/;
+const SSN_G = /\b\d{3}-\d{2}-\d{4}\b/g;
+const EIN_G = /\b\d{2}-\d{7}\b/g;
+
+function redactIds(value) {
+  return String(value ?? "").replace(SSN_G, "[redacted]").replace(EIN_G, "[redacted]");
+}
+
+function parseRate(value) {
+  const text = value.trim();
+  if (isBlank(text) || FUZZY.test(text)) return null;
+  if (/^\d{1,2}(?:\.\d+)?%$/.test(text)) return explicitOrdinaryRate(Number(text.replace("%", "")) / 100);
+  if (!/^\d?\.\d+$/.test(text)) return null;
+  return explicitOrdinaryRate(Number(text));
+}
 
 const BANNED_KEYS = new Set([
   "SSN",
@@ -319,12 +335,16 @@ function assembleGroups(fields, accepted, dropped) {
  * @param {string} text
  * @param {{ sourceKind: string, fileName?: string, ocr?: boolean, confidences?: number[] }} meta
  */
-export function parseDocumentText(text, meta) {
+export function parseDocumentText(text, meta = {}) {
+  const privateMode = meta.privateMode === true;
   if (typeof text !== "string" || text.trim() === "") {
     throw new Error("The document had no readable text.");
   }
-  if (SSN.test(text) || EIN.test(text)) {
+  if (!privateMode && (SSN.test(text) || EIN.test(text))) {
     throw new Error("This file looks like it contains an SSN or EIN. Phase 2 accepts anonymized packets only.");
+  }
+  function clip(value) {
+    return privateMode ? redactIds(value) : String(value ?? "");
   }
 
   const fields = {};
@@ -335,6 +355,8 @@ export function parseDocumentText(text, meta) {
   let taxYear = null;
   let taxYearConfidence = null;
   let forms = [];
+  let planningRate = null;
+  const readableLines = [];
 
   function keep(field, value, evidence, ocrConf) {
     if (Object.prototype.hasOwnProperty.call(fields, field)) {
@@ -363,9 +385,13 @@ export function parseDocumentText(text, meta) {
       dropped.push({ evidence: line, reason: LOW_OCR_REASON });
       continue;
     }
+    readableLines.push(line);
     const split = line.match(/^([^:]{1,60}):\s*(.*)$/);
     if (!split) {
-      dropped.push({ evidence: line, reason: "Unlabeled text is not a field." });
+      dropped.push({
+        evidence: privateMode ? "Unlabeled line" : line,
+        reason: "Unlabeled text is not a field.",
+      });
       continue;
     }
     const key = normalizeKey(split[1]);
@@ -376,6 +402,10 @@ export function parseDocumentText(text, meta) {
       continue;
     }
     if (BANNED_KEYS.has(key)) {
+      if (privateMode) {
+        dropped.push({ evidence: key, reason: "Identity line omitted. It was not stored." });
+        continue;
+      }
       throw new Error(`Remove "${key}". Packets stay anonymized.`);
     }
     if (key === "ANON") {
@@ -413,13 +443,22 @@ export function parseDocumentText(text, meta) {
       continue;
     }
     if (key === "LABEL") continue;
+    if (key === "MARGINAL RATE") {
+      const rate = parseRate(value);
+      if (rate == null) dropped.push({ evidence, reason: "Marginal rate was not one explicit ordinary rate, so no savings rate was stored." });
+      else planningRate = rate;
+      continue;
+    }
     if (REFUSED_KEYS.has(key)) {
-      dropped.push({ evidence, reason: REFUSED_KEYS.get(key) });
+      dropped.push({ evidence: privateMode ? key : evidence, reason: REFUSED_KEYS.get(key) });
       continue;
     }
     const spec = FIELD_LABELS[key];
     if (!spec) {
-      dropped.push({ evidence, reason: "Unrecognized label. It was not mapped to a field." });
+      dropped.push({
+        evidence: privateMode ? key : evidence,
+        reason: "Unrecognized label. It was not mapped to a field.",
+      });
       continue;
     }
     const parsed = PARSERS[spec[1]](value);
@@ -430,16 +469,37 @@ export function parseDocumentText(text, meta) {
     keep(spec[0], parsed.value, evidence, ocrConf);
   }
 
-  if (!anon) {
+  if (privateMode) {
+    const layout = parseFormLayout(readableLines.join("\n"), {
+      confidence: meta.ocr ? CONFIDENCE_FLOOR : EXPLICIT_CONFIDENCE,
+    });
+    for (const [key, value] of Object.entries(layout.fields)) {
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) fields[key] = value;
+    }
+    accepted.push(...layout.accepted);
+    dropped.push(...layout.dropped);
+    for (const form of layout.forms) {
+      if (!forms.includes(form)) forms.push(form);
+    }
+    if (taxYear == null && layout.taxYear != null) taxYear = layout.taxYear;
+  }
+
+  if (!anon && !privateMode) {
     throw new Error(meta.ocr
       ? "OCR did not read ANON: TRUE above the confidence floor. The scan was not scored. Missing amounts were not filled with zero."
       : "Set ANON: TRUE. Live client packets are out of scope.");
   }
   if (!filer) {
-    throw new Error(meta.ocr
-      ? "OCR did not read a FILER-### reference above the confidence floor. The scan was not scored. Missing amounts were not filled with zero."
-      : "Packet needs a FILER-### reference. Names are not accepted.");
+    if (!privateMode) {
+      throw new Error(meta.ocr
+        ? "OCR did not read a FILER-### reference above the confidence floor. The scan was not scored. Missing amounts were not filled with zero."
+        : "Packet needs a FILER-### reference. Names are not accepted.");
+    }
+    filer = "FILER-LOCAL";
   }
+
+  for (const row of accepted) row.evidence = clip(row.evidence);
+  for (const row of dropped) row.evidence = clip(row.evidence);
 
   assembleGroups(fields, accepted, dropped);
   if (taxYear != null) {
@@ -469,7 +529,7 @@ export function parseDocumentText(text, meta) {
 
   const ingest = {
     sourceKind: meta.sourceKind || "text",
-    fileName: meta.fileName || "",
+    fileName: clip(meta.fileName || ""),
     confidenceFloor: CONFIDENCE_FLOOR,
     accepted,
     dropped,
@@ -484,10 +544,14 @@ export function parseDocumentText(text, meta) {
     filer_ref: filer,
     tax_year: taxYear,
     forms_in_packet: forms,
-    scenario: meta.ocr
-      ? "Scan OCR. Lines under the confidence floor were omitted. Blank amounts stayed blank."
-      : "Phase 2 ingest. Blank amounts stayed omitted. Lines under the confidence floor were not scored.",
+    scenario: privateMode
+      ? "Internal desk. This packet stays in browser memory and is not saved. Blank amounts stayed blank."
+      : meta.ocr
+        ? "Scan OCR. Lines under the confidence floor were omitted. Blank amounts stayed blank."
+        : "Phase 2 ingest. Blank amounts stayed omitted. Lines under the confidence floor were not scored.",
     fields,
     ingest,
+    ...(privateMode ? { ephemeral: true, anon } : { anon: true }),
+    ...(planningRate != null ? { planning_rate: planningRate } : {}),
   };
 }

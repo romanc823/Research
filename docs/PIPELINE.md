@@ -23,7 +23,7 @@ The left rail is a fixture picker. The drop zone accepts anonymized inputs only,
 - A JPEG or PNG drawn in the desk’s label font.
 - A scan (image-only PDF) or a photo (JPEG/PNG) of those same `LABEL: VALUE` lines.
 
-A file with an SSN or EIN pattern is refused. OCR does not guess a field the label parser would refuse, and it does not fill a blank with zero.
+On the public desk, a file with an SSN or EIN pattern is refused, and so is a PDF over 40 pages. The internal desk (`?desk=private`, see [PHASE-2.7.md](PHASE-2.7.md)) can read a form packet in the browser without storing it. OCR does not guess a field the label parser would refuse, and it does not fill a blank with zero.
 
 The buttons under the drop zone load synthetic packets from `samples/ingest/`. Those files are not fixture JSON and they are not client documents.
 
@@ -135,6 +135,10 @@ Cost-segregation window: `tax_year - pis_or_remodel_year` is 0, 1, or 2. That is
 **FILER-117 (silent Augusta).** K-1 only, Form 8829 tagged as ownership. Extract clears the ownership bit (`ownership_rejected_as_8829`). Score stays silent for type 14 and for home office, because home office also needs Schedule C or an S corporation. Education context without Form 1098-T stays silent for type 12.
 
 **FILER-118 (silent REP).** Schedule E losses and `hours_log_rep: null`. Type 18 is silent, not Medium. The same packet has a prior cost-segregation study, so type 13 is silent even though basis and a recent year are present.
+
+## Phase 2.7 internal desk
+
+`?desk=private` is the internal switch. Public Pages does not use it. The reader can take W-2, SSA, and 1099 text without `ANON: TRUE`, up to 100 pages. A High QBI card can carry a planning estimate when the packet states an ordinary rate. That estimate is not present copy, it is not on Medium or silent rows, and it does not change a pass tag. [PHASE-2.7.md](PHASE-2.7.md) is the operator note.
 
 ## What is later
 
