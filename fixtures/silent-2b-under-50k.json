@@ -1,0 +1,31 @@
+{
+  "id": "silent-2b-under-50k",
+  "anon": true,
+  "label": "Silent twin — self-employment under $50,000 with a compensation figure",
+  "group": "silent",
+  "filer_ref": "FILER-125",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Schedule SE"
+  ],
+  "scenario": "Schedule SE net earnings are $49,999, under the $50,000 band. An explicit compensation figure of $20,000 leaves a gap above $25,000. Type 2b stays silent. The gap does not open below the band. At $100,000 or more, self-employment income is High on its own. The retirement deduction is already present.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 49999,
+    "planning_rc": 20000,
+    "earned_income": 49999,
+    "retirement_deduction": 4000,
+    "qbi_fields": {
+      "qbi_income": 49999,
+      "tentative_deduction": 10000,
+      "deduction_taken": 10000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

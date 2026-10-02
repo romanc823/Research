@@ -1,0 +1,31 @@
+{
+  "id": "silent-2b-band-small-gap",
+  "anon": true,
+  "label": "Silent twin — compensation band, gap under $25,000",
+  "group": "silent",
+  "filer_ref": "FILER-124",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Schedule SE"
+  ],
+  "scenario": "Schedule SE net earnings are $80,000 and an explicit compensation figure of $60,000 is on the packet. The gap is $20,000, under $25,000. Type 2b stays silent. The retirement deduction is already present.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 80000,
+    "planning_rc": 60000,
+    "earned_income": 80000,
+    "retirement_deduction": 4000,
+    "qbi_fields": {
+      "qbi_income": 80000,
+      "tentative_deduction": 16000,
+      "deduction_taken": 16000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

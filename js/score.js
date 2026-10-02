@@ -26,9 +26,12 @@ export const STUB_FLOORS = {
 /**
  * Locked type 2b figures. These are not STUB_FLOORS and they are not
  * read by types 1–15 or 18. A missing Schedule SE amount is not zero.
+ * `seIncome` is the se-alone High. `seBandMin` is not an se-alone floor:
+ * the planning_rc gap is High only on [seBandMin, seIncome).
  */
 export const TYPE_2B_LOCK = {
   seIncome: 100_000,
+  seBandMin: 50_000,
   rcGap: 25_000,
 };
 
@@ -125,6 +128,9 @@ function formsMatch(fields, pattern) {
 /**
  * Type 2b only. High or silent. Never Medium.
  * W-2 Box 1 (`earned_income`) is not an input. A one-year spike is not a kill.
+ * Se-alone High is `se_income` at the locked floor. The compensation gap is
+ * High only inside the band below that floor, and only with an explicit
+ * `planning_rc`. A missing figure is not inferred and is not treated as zero.
  */
 function scoreScorpConversion(f) {
   const se = explicitMoney(f.se_income);
@@ -158,14 +164,21 @@ function scoreScorpConversion(f) {
   else if (se <= 0) silentReason = "Loss or near-zero self-employment profit";
 
   const atFloor = se != null && se >= TYPE_2B_LOCK.seIncome;
-  const atGap = gap != null && gap >= TYPE_2B_LOCK.rcGap;
+  const inBand = se != null && se >= TYPE_2B_LOCK.seBandMin && se < TYPE_2B_LOCK.seIncome;
+  const atGap = inBand && rc != null && gap != null && gap >= TYPE_2B_LOCK.rcGap;
   if (!silentReason && (atFloor || atGap)) {
     return row("2b", "High", "second-eye", atFloor
       ? "Schedule SE income is at the locked floor"
-      : "Explicit compensation gap is at the locked gap", evidence);
+      : "Schedule SE income is in the compensation band with an explicit compensation figure and a locked gap", evidence);
   }
   if (!silentReason) {
-    silentReason = "Schedule SE income is under the locked floor and the compensation gap is under the locked gap";
+    if (se < TYPE_2B_LOCK.seBandMin) {
+      silentReason = "Schedule SE income is under the compensation band";
+    } else if (rc == null) {
+      silentReason = "Schedule SE income is in the compensation band and no explicit compensation figure is on the packet";
+    } else {
+      silentReason = "Schedule SE income is in the compensation band and the compensation gap is under the locked gap";
+    }
   }
   return row("2b", "silent", null, silentReason, evidence);
 }

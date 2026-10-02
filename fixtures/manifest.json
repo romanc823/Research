@@ -27,6 +27,12 @@
       "label": "Schedule SE — net earnings at least $100,000, no Schedule C"
     },
     {
+      "id": "high-2b-rc-band",
+      "file": "high-2b-rc-band.json",
+      "group": "high",
+      "label": "Schedule C — compensation band, explicit gap at $25,000"
+    },
+    {
       "id": "high-04-2210-underpayment",
       "file": "high-04-2210-underpayment.json",
       "group": "high",
@@ -97,6 +103,24 @@
       "file": "silent-01-sstb-no-gap.json",
       "group": "silent",
       "label": "Silent twin — SSTB, QBI deduction already taken"
+    },
+    {
+      "id": "silent-2b-band-no-rc",
+      "file": "silent-2b-band-no-rc.json",
+      "group": "silent",
+      "label": "Silent twin — compensation band, no compensation figure"
+    },
+    {
+      "id": "silent-2b-band-small-gap",
+      "file": "silent-2b-band-small-gap.json",
+      "group": "silent",
+      "label": "Silent twin — compensation band, gap under $25,000"
+    },
+    {
+      "id": "silent-2b-under-50k",
+      "file": "silent-2b-under-50k.json",
+      "group": "silent",
+      "label": "Silent twin — self-employment under $50,000 with a compensation figure"
     },
     {
       "id": "silent-03-09-little-deduction-thin-ti",

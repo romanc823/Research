@@ -1,0 +1,30 @@
+{
+  "id": "silent-2b-band-no-rc",
+  "anon": true,
+  "label": "Silent twin — compensation band, no compensation figure",
+  "group": "silent",
+  "filer_ref": "FILER-123",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Schedule SE"
+  ],
+  "scenario": "Schedule SE net earnings are $80,000, inside the $50,000 to $100,000 band. No compensation figure is on the packet. Type 2b stays silent. $80,000 of self-employment income alone is not High, and it is not Medium. The retirement deduction is already present.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 80000,
+    "earned_income": 80000,
+    "retirement_deduction": 4000,
+    "qbi_fields": {
+      "qbi_income": 80000,
+      "tentative_deduction": 16000,
+      "deduction_taken": 16000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [],
+    "medium": []
+  }
+}

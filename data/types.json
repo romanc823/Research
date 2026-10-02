@@ -27,7 +27,7 @@
       "lane": "must-review",
       "pass_tag": "second-eye",
       "cite": "§1362",
-      "trigger_summary": "Business signal is Schedule C, a Schedule SE form, or present self-employment income. High when that income is at least $100,000, or an explicit compensation figure leaves a gap of at least $25,000. High only. Already an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, missing SE, or W-2-only stays silent. A one-year spike does not silence it. SSTB does not raise confidence."
+      "trigger_summary": "Business signal is Schedule C, a Schedule SE form, or present self-employment income. High when that income is at least $100,000, or when it is at least $50,000 and under $100,000 with an explicit compensation figure and a gap of at least $25,000. Not a flat $50,000 floor. High only, never Medium. Already an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, missing SE, W-2-only, or self-employment under $50,000 stays silent. A one-year spike does not silence it. SSTB does not raise confidence."
     },
     {
       "id": "3",

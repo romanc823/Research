@@ -93,6 +93,25 @@ for (const item of manifest.fixtures) {
     if (!seOnly || seOnly.band !== "High" || seOnly.passTag !== "second-eye") {
       fail("SE-only fixture did not High type 2b");
     }
+    if ("planning_rc" in fixture.fields) fail("SE-only fixture invented a compensation figure");
+  }
+  if (item.id === "high-2b-rc-band") {
+    const gap = fixture.fields.se_income - fixture.fields.planning_rc;
+    if (!(fixture.fields.se_income >= 50_000 && fixture.fields.se_income < 100_000)) {
+      fail("band High fixture is outside $50,000–$100,000");
+    }
+    if (gap < 25_000) fail("band High fixture gap is under $25,000");
+    const bandHigh = evaluation.cards.find((card) => card.typeId === "2b");
+    if (!bandHigh || bandHigh.band !== "High" || bandHigh.passTag !== "second-eye" || bandHigh.savings) {
+      fail("compensation-band fixture did not High type 2b without a dollar");
+    }
+  }
+  if (item.id === "silent-2b-band-no-rc" || item.id === "silent-2b-band-small-gap" || item.id === "silent-2b-under-50k") {
+    const row2b = evaluation.scored.find((row) => row.typeId === "2b");
+    if (!row2b || row2b.band !== "silent" || row2b.passTag != null) {
+      fail(`${item.id} did not stay silent on type 2b`);
+    }
+    if (evaluation.cards.some((card) => card.typeId === "2b")) fail(`${item.id} presented type 2b`);
   }
   const type2b = evaluation.scored.find((row) => row.typeId === "2b");
   if (!type2b) fail(`${item.id} did not score type 2b`);
@@ -103,8 +122,8 @@ for (const item of manifest.fixtures) {
   }
 }
 
-if (manifest.fixtures.length < 12 || manifest.fixtures.length > 21) {
-  fail(`fixture count ${manifest.fixtures.length} is outside 12–21`);
+if (manifest.fixtures.length < 12 || manifest.fixtures.length > 25) {
+  fail(`fixture count ${manifest.fixtures.length} is outside 12–25`);
 }
 
 const empty = evaluateFixture({ anon: true, tax_year: 2025, fields: {} }, typesById);
@@ -204,6 +223,18 @@ if (!seOnlyRow || seOnlyRow.band !== "High" || seOnlyRow.evidence.schedule_c !==
 expectBand("2b silent one dollar under 100k without a gap", {
   ...schC, se_income: TYPE_2B_LOCK.seIncome - 1,
 }, { "2b": "silent" });
+expectBand("2b silent at 50k with no compensation figure", {
+  ...schC, se_income: TYPE_2B_LOCK.seBandMin,
+}, { "2b": "silent", 3: "silent" });
+expectBand("2b high at the band floor when the gap is 25k", {
+  ...schC, se_income: TYPE_2B_LOCK.seBandMin, planning_rc: TYPE_2B_LOCK.seBandMin - TYPE_2B_LOCK.rcGap,
+}, { "2b": "High", 3: "silent" });
+expectBand("2b silent one dollar under the band even when the gap is 25k", {
+  ...schC, se_income: TYPE_2B_LOCK.seBandMin - 1, planning_rc: 0,
+}, { "2b": "silent", 3: "silent" });
+expectBand("2b se-alone still high when the gap is under 25k", {
+  ...schC, se_income: TYPE_2B_LOCK.seIncome, planning_rc: TYPE_2B_LOCK.seIncome - 1,
+}, { "2b": "High", 3: "silent" });
 expectBand("2b high when the compensation gap is 25k", {
   ...schC, se_income: 80_000, planning_rc: 80_000 - TYPE_2B_LOCK.rcGap,
 }, { "2b": "High", 3: "silent" });
@@ -306,7 +337,9 @@ if (Object.keys(STUB_FLOORS).length !== Object.keys(floorSnapshot).length) fail(
 for (const [key, value] of Object.entries(floorSnapshot)) {
   if (STUB_FLOORS[key] !== value) fail(`floor drift on ${key}`);
 }
-if (TYPE_2B_LOCK.seIncome !== 100_000 || TYPE_2B_LOCK.rcGap !== 25_000) fail("type 2b lock drifted");
+if (TYPE_2B_LOCK.seIncome !== 100_000 || TYPE_2B_LOCK.seBandMin !== 50_000 || TYPE_2B_LOCK.rcGap !== 25_000) {
+  fail("type 2b lock drifted");
+}
 
 const payrollSplit = { oasdi_wage_base: 176_100, oasdi_rate: 0.124, medicare_rate: 0.029 };
 const aboveBaseFields = {

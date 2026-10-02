@@ -1,0 +1,33 @@
+{
+  "id": "high-2b-rc-band",
+  "anon": true,
+  "label": "Schedule C — compensation band, explicit gap at $25,000",
+  "group": "high",
+  "filer_ref": "FILER-122",
+  "tax_year": 2025,
+  "forms_in_packet": [
+    "Form 1040",
+    "Schedule C",
+    "Schedule SE"
+  ],
+  "scenario": "Schedule SE net earnings are $80,000, inside the $50,000 to $100,000 band. An explicit compensation figure of $55,000 is on the packet, so the gap is $25,000. Type 2b is must-review from that pair. It is not a flat $50,000 self-employment floor. The retirement deduction is already present, so SEP/Solo stays quiet. No payroll rates are on the packet, so no dollar estimate is attached.",
+  "fields": {
+    "schedule_c": true,
+    "se_income": 80000,
+    "planning_rc": 55000,
+    "earned_income": 80000,
+    "retirement_deduction": 4000,
+    "qbi_fields": {
+      "qbi_income": 80000,
+      "tentative_deduction": 16000,
+      "deduction_taken": 16000,
+      "sstb": false
+    }
+  },
+  "expected": {
+    "high": [
+      "2b"
+    ],
+    "medium": []
+  }
+}
