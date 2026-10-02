@@ -109,7 +109,7 @@ These kills are intentional, not missing features:
 - A gain with missing lots and no wash sale or loss room
 - A prior cost-segregation study
 - Grouping, cash-balance, and charitable bunching, which stay Medium or silent and do not become High in this pass
-- Type 2b when the filer is already an S corporation, files Form 1120-S, is a multi-owner Form 1065 or K-1 only, has a loss or zero Schedule SE profit, is missing Schedule SE, or is W-2-only. There is no Medium. A one-year spike does not silence it.
+- Type 2b when the filer is already an S corporation, files Form 1120-S, is a multi-owner Form 1065 or K-1 only, has a loss or zero Schedule SE profit, is missing Schedule SE, or is W-2-only. Self-employment income under $50,000 stays silent even with an explicit compensation figure. Income from $50,000 up to but not including $100,000 stays silent unless that figure is explicit and the gap is at least $25,000. $50,000 of self-employment income alone is not High. There is no Medium. A one-year spike does not silence it.
 
 ## Stub calibrations
 

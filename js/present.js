@@ -57,9 +57,9 @@ const TEMPLATES = {
   },
   "2b"() {
     return line(
-      "Schedule SE income is at the locked floor, or an explicit compensation figure on the packet leaves a locked gap.",
+      "Schedule SE income is at the locked floor, or it is in the compensation band with an explicit compensation figure and a locked gap.",
       "Schedule C or Schedule SE.",
-      "an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, or missing Schedule SE stays silent. Wages with no Schedule C, no Schedule SE, and no self-employment income stay silent. A one-year spike does not silence this check. SSTB does not raise confidence. This check does not order the retirement-deduction review.",
+      "an S corporation, Form 1120-S, a multi-owner Form 1065, K-1 only, a loss, near-zero profit, or missing Schedule SE stays silent. Income under the compensation band stays silent even with a compensation figure. Income in that band stays silent without an explicit compensation figure or without the locked gap. Wages with no Schedule C, no Schedule SE, and no self-employment income stay silent. A one-year spike does not silence this check. SSTB does not raise confidence. This check does not order the retirement-deduction review.",
       "hold for planner review.",
     );
   },
