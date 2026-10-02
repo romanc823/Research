@@ -74,3 +74,26 @@ export const SILENT_PNG_LINES = [
   "HO CONTEXT: MAYBE",
   "NOTE: CHILDREN AT THE RESIDENCE",
 ];
+
+/** Same Augusta packet as the text PDF, with its own filer. Rendered as a page image. */
+export const SCAN_PDF_LINES = AUGUSTA_PDF_LINES.map((line) => (
+  line === "FILER: FILER-201" ? "FILER: FILER-211" : line
+));
+
+/** Photo of an explicit retirement zero. Blanks stay blank. Parent is not hire-kids. */
+export const PHOTO_SEP_LINES = [
+  "ANON: TRUE",
+  "TAX YEAR: 2025",
+  "FILER: FILER-212",
+  "FORMS: SCHEDULE C",
+  "SCHEDULE C: YES",
+  "SE INCOME: 88000",
+  "EARNED INCOME: 88000",
+  "RETIREMENT DEDUCTION: 0.00",
+  "HOURS LOG REP:",
+  "BUILDING BASIS:",
+  "DEPENDENT RELATIONSHIP: PARENT",
+  "NUA: YES",
+  "QSBS: YES",
+  "COST SEG: MAYBE",
+];

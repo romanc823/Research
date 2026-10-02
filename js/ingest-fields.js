@@ -8,7 +8,28 @@
 import { FIELD_KEYS } from "./extract.js";
 
 export const CONFIDENCE_FLOOR = 0.8;
+export const OCR_WATCH_FLOOR = 0.9;
 const EXPLICIT_CONFIDENCE = 0.96;
+
+const OCR_WATCH_FIELDS = new Set([
+  "building_basis",
+  "pis_or_remodel_year",
+  "prior_cost_seg",
+  "home_ownership_doc",
+  "home_ownership_source",
+  "child_dependent",
+  "dependent_relationship",
+  "dependents_on_return",
+  "dependent_ages",
+]);
+
+export const LOW_OCR_REASON = "OCR confidence is below the floor, so the line was omitted.";
+export const WATCH_OCR_REASON = "OCR confidence is below the watch floor for cost segregation, Augusta, or hire-kids, so the line was omitted.";
+
+function roundConf(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 10000) / 10000;
+}
 
 const SSN = /\b\d{3}-\d{2}-\d{4}\b/;
 const EIN = /\b\d{2}-\d{7}\b/;
@@ -296,7 +317,7 @@ function assembleGroups(fields, accepted, dropped) {
 
 /**
  * @param {string} text
- * @param {{ sourceKind: string, fileName?: string }} meta
+ * @param {{ sourceKind: string, fileName?: string, ocr?: boolean, confidences?: number[] }} meta
  */
 export function parseDocumentText(text, meta) {
   if (typeof text !== "string" || text.trim() === "") {
@@ -312,25 +333,36 @@ export function parseDocumentText(text, meta) {
   let anon = false;
   let filer = null;
   let taxYear = null;
+  let taxYearConfidence = null;
   let forms = [];
 
-  function keep(field, value, evidence) {
+  function keep(field, value, evidence, ocrConf) {
     if (Object.prototype.hasOwnProperty.call(fields, field)) {
       dropped.push({ evidence, reason: "Duplicate label ignored. The first explicit value stands." });
       return;
     }
-    if (EXPLICIT_CONFIDENCE < CONFIDENCE_FLOOR) {
-      dropped.push({ evidence, reason: "Below the confidence floor." });
+    const confidence = ocrConf == null ? EXPLICIT_CONFIDENCE : ocrConf;
+    if (confidence < CONFIDENCE_FLOOR) {
+      dropped.push({ evidence, reason: LOW_OCR_REASON });
+      return;
+    }
+    if (ocrConf != null && OCR_WATCH_FIELDS.has(field) && confidence < OCR_WATCH_FLOOR) {
+      dropped.push({ evidence, reason: WATCH_OCR_REASON });
       return;
     }
     fields[field] = value;
-    accepted.push({ field, value, confidence: EXPLICIT_CONFIDENCE, evidence });
+    accepted.push({ field, value, confidence, evidence });
   }
 
   const lines = text.split(/\r?\n/);
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
     if (!line) continue;
+    const ocrConf = meta.ocr ? roundConf(Number(meta.confidences?.[index])) : null;
+    if (meta.ocr && !(ocrConf >= CONFIDENCE_FLOOR)) {
+      dropped.push({ evidence: line, reason: LOW_OCR_REASON });
+      continue;
+    }
     const split = line.match(/^([^:]{1,60}):\s*(.*)$/);
     if (!split) {
       dropped.push({ evidence: line, reason: "Unlabeled text is not a field." });
@@ -361,7 +393,10 @@ export function parseDocumentText(text, meta) {
     if (key === "TAX YEAR") {
       const parsed = parseYear(value);
       if (parsed.omit) dropped.push({ evidence, reason: parsed.reason });
-      else taxYear = parsed.value;
+      else {
+        taxYear = parsed.value;
+        taxYearConfidence = ocrConf;
+      }
       continue;
     }
     if (key === "FORMS") {
@@ -392,14 +427,18 @@ export function parseDocumentText(text, meta) {
       dropped.push({ evidence, reason: parsed.reason || "Omitted." });
       continue;
     }
-    keep(spec[0], parsed.value, evidence);
+    keep(spec[0], parsed.value, evidence, ocrConf);
   }
 
   if (!anon) {
-    throw new Error("Set ANON: TRUE. Live client packets are out of scope.");
+    throw new Error(meta.ocr
+      ? "OCR did not read ANON: TRUE above the confidence floor. The scan was not scored. Missing amounts were not filled with zero."
+      : "Set ANON: TRUE. Live client packets are out of scope.");
   }
   if (!filer) {
-    throw new Error("Packet needs a FILER-### reference. Names are not accepted.");
+    throw new Error(meta.ocr
+      ? "OCR did not read a FILER-### reference above the confidence floor. The scan was not scored. Missing amounts were not filled with zero."
+      : "Packet needs a FILER-### reference. Names are not accepted.");
   }
 
   assembleGroups(fields, accepted, dropped);
@@ -408,7 +447,7 @@ export function parseDocumentText(text, meta) {
     accepted.push({
       field: "tax_year",
       value: taxYear,
-      confidence: EXPLICIT_CONFIDENCE,
+      confidence: taxYearConfidence == null ? EXPLICIT_CONFIDENCE : taxYearConfidence,
       evidence: `TAX YEAR: ${taxYear}`,
     });
   }
@@ -418,13 +457,24 @@ export function parseDocumentText(text, meta) {
     if (!ALLOWED.has(key)) throw new Error(`Ingest emitted a field outside the extract contract: ${key}`);
   }
 
-  const kindLabel = meta.sourceKind === "pdf"
-    ? "text-layer PDF"
-    : meta.sourceKind === "jpeg"
-      ? "labeled JPEG"
-      : meta.sourceKind === "png"
-        ? "labeled PNG"
-        : "labeled text";
+  const kindLabel = {
+    pdf: "text-layer PDF",
+    "pdf-ocr": "scanned PDF",
+    jpeg: "labeled JPEG",
+    "jpeg-ocr": "photo JPEG",
+    png: "labeled PNG",
+    "png-ocr": "photo PNG",
+    text: "labeled text",
+  }[meta.sourceKind] || "labeled text";
+
+  const ingest = {
+    sourceKind: meta.sourceKind || "text",
+    fileName: meta.fileName || "",
+    confidenceFloor: CONFIDENCE_FLOOR,
+    accepted,
+    dropped,
+  };
+  if (meta.ocr) ingest.ocrWatchFloor = OCR_WATCH_FLOOR;
 
   return {
     id: `ingest-${filer.toLowerCase()}-${meta.sourceKind || "text"}`,
@@ -434,14 +484,10 @@ export function parseDocumentText(text, meta) {
     filer_ref: filer,
     tax_year: taxYear,
     forms_in_packet: forms,
-    scenario: "Phase 2 ingest. Blank amounts stayed omitted. Lines under the confidence floor were not scored.",
+    scenario: meta.ocr
+      ? "Phase 2.5 OCR. Lines under the confidence floor were omitted. Blank amounts stayed blank."
+      : "Phase 2 ingest. Blank amounts stayed omitted. Lines under the confidence floor were not scored.",
     fields,
-    ingest: {
-      sourceKind: meta.sourceKind || "text",
-      fileName: meta.fileName || "",
-      confidenceFloor: CONFIDENCE_FLOOR,
-      accepted,
-      dropped,
-    },
+    ingest,
   };
 }

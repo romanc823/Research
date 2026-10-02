@@ -89,7 +89,7 @@ function renderRail() {
     <select id="fixture-select">${options}</select>
     <div class="drop" id="drop-zone">
       <p><strong>Drop a packet</strong></p>
-      <p>Fixture JSON, a text-layer PDF, or a labeled JPEG/PNG. SSN/EIN patterns are refused. Blank amounts stay blank.</p>
+      <p>Fixture JSON, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. Low-confidence lines are omitted. Blank amounts stay blank.</p>
       <label class="file-btn">
         Choose file
         <input id="file-input" type="file" accept=".json,.pdf,.png,.jpg,.jpeg,application/json,application/pdf,image/png,image/jpeg" />
@@ -98,8 +98,10 @@ function renderRail() {
         <button type="button" data-sample="samples/ingest/synthetic-augusta.pdf">Sample PDF</button>
         <button type="button" data-sample="samples/ingest/synthetic-rep-hours.jpg">Sample JPEG</button>
         <button type="button" data-sample="samples/ingest/synthetic-silent-misses.png">Sample PNG</button>
+        <button type="button" data-sample="samples/ingest/synthetic-scan-augusta.pdf">Sample scan</button>
+        <button type="button" data-sample="samples/ingest/synthetic-photo-sep.jpg">Sample photo</button>
       </div>
-      <p id="drop-error" class="drop-error" hidden></p>
+      <p id="drop-note" class="drop-note" hidden></p>
     </div>
     <div class="fixture-list">${lists}</div>
   `;
@@ -116,18 +118,21 @@ function renderIngest(fixture) {
   if (!ingest) return "";
   const kind = {
     pdf: "Text-layer PDF",
+    "pdf-ocr": "Scanned PDF",
     jpeg: "Labeled JPEG",
+    "jpeg-ocr": "Photo JPEG",
     png: "Labeled PNG",
+    "png-ocr": "Photo PNG",
     text: "Labeled text",
   }[ingest.sourceKind] || "Ingest";
   const kept = (ingest.accepted || []).map((row) => `
-    <li><span>${esc(row.evidence)}</span><span>${esc(ingestValue(row.value))} · ${esc(row.confidence)}</span></li>
+    <li><span>${esc(row.evidence)}</span><span>${esc(ingestValue(row.value))} · ${esc(Number.isFinite(Number(row.confidence)) ? Number(row.confidence).toFixed(2) : row.confidence)}</span></li>
   `).join("");
   const omitted = (ingest.dropped || []).map((row) => `
     <li><span>${esc(row.evidence || "—")}</span><span>${esc(row.reason)}</span></li>
   `).join("");
   return `
-    <p class="ingest-summary">${esc(kind)} · confidence floor ${esc(ingest.confidenceFloor)} · ${Object.keys(fixture.fields || {}).length} fields kept · ${(ingest.dropped || []).length} lines omitted</p>
+    <p class="ingest-summary">${esc(kind)} · confidence floor ${esc(ingest.confidenceFloor)}${ingest.ocrWatchFloor != null ? ` · watch floor ${esc(ingest.ocrWatchFloor)} on types 13, 14, and 15` : ""} · ${Object.keys(fixture.fields || {}).length} fields kept · ${(ingest.dropped || []).length} lines omitted</p>
     <details class="silent ingest">
       <summary>Provenance — kept lines and omitted lines</summary>
       <h4>Kept</h4>
@@ -293,16 +298,18 @@ function ingestFixture(fixture, group = "dropped") {
   selectFixture(fixture.id);
 }
 
-function showDropError(message) {
-  const node = document.querySelector("#drop-error");
+function showDropMessage(message, isError = false) {
+  const node = document.querySelector("#drop-note");
   if (!node) return;
-  node.hidden = false;
-  node.textContent = message;
+  node.hidden = !message;
+  node.textContent = message || "";
+  node.classList.toggle("is-error", Boolean(isError));
 }
 
 async function takeFile(file) {
   const lower = (file.name || "").toLowerCase();
   const json = lower.endsWith(".json") || file.type === "application/json";
+  if (!json) showDropMessage("Reading packet… OCR stays in this browser.");
   const fixture = json
     ? parseFixtureText(await file.text())
     : await ingestDocument({
@@ -348,6 +355,7 @@ async function boot() {
 rail.addEventListener("click", async (event) => {
   const sample = event.target.closest("[data-sample]");
   if (sample) {
+    showDropMessage("Reading packet… OCR stays in this browser.");
     try {
       const response = await fetch(sample.dataset.sample);
       if (!response.ok) throw new Error(`Could not load ${sample.dataset.sample}`);
@@ -355,7 +363,7 @@ rail.addEventListener("click", async (event) => {
       const name = sample.dataset.sample.split("/").pop();
       ingestFixture(await ingestDocument({ name, type: "", bytes }));
     } catch (error) {
-      showDropError(error.message);
+      showDropMessage(error.message, true);
     }
     return;
   }
@@ -389,7 +397,7 @@ rail.addEventListener("drop", async (event) => {
   try {
     await takeFile(file);
   } catch (error) {
-    showDropError(error.message);
+    showDropMessage(error.message, true);
   }
 });
 
@@ -400,7 +408,7 @@ rail.addEventListener("change", async (event) => {
   try {
     await takeFile(file);
   } catch (error) {
-    showDropError(error.message);
+    showDropMessage(error.message, true);
   }
 });
 

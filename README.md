@@ -60,7 +60,7 @@ The left rail lists 20 synthetic packets. Pick one. The main pane runs that pack
 
 The header counts how many fixtures match the `expected` block in their JSON. That count is the same check as `npm run check`.
 
-The drop zone accepts a local fixture JSON file, a text-layer PDF, or a labeled JPEG/PNG. It refuses files with an SSN or EIN pattern, objects that are not `anon: true`, scans with no text layer, and photographs that are not the label font. Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
+The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. It refuses an SSN or EIN pattern, a page under the confidence floor, and scan encodings it cannot decode (JBIG2, CCITT, JPEG2000). Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
 
 ## Layout
 
@@ -70,9 +70,12 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, or a labeled 
 | `css/app.css` | Layout. No build step. |
 | `js/app.js` | Picker, drop zone, cards |
 | `js/intake.js` | JSON fixture gate |
-| `js/ingest.js` | PDF text layer and labeled JPEG/PNG |
-| `js/ingest-fields.js` | Fail-closed field parser |
-| `samples/ingest/` | Synthetic PDF, JPEG, and PNG. Not fixture JSON. |
+| `js/ingest.js` | Text layer, label font, then OCR |
+| `js/ingest-fields.js` | Fail-closed field parser, including the OCR floors |
+| `js/ocr.js` | Tesseract.js in the browser and in `npm run check` |
+| `js/pdf-images.js` | JPEG and FlateDecode page images |
+| `vendor/ocr/` | Tesseract engine and English model served by Pages |
+| `samples/ingest/` | Synthetic PDF, JPEG, PNG, scan, and photo. Not fixture JSON. |
 | `js/extract.js` | Fields only |
 | `js/score.js` | High / Medium / silent |
 | `js/present.js` | Fixed present copy and talk bans |
@@ -85,7 +88,8 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, or a labeled 
 | `.nojekyll` | Publishes the repo as static files. Pages does not run Jekyll. |
 | `tools/self-check.mjs` | Fixture expectations and floor boundaries |
 | `tools/build-fixtures.mjs` | Regenerates the JSON pack |
-| `tools/write-ingest-samples.mjs` | Regenerates the synthetic PDF, JPEG, and PNG |
+| `tools/write-ingest-samples.mjs` | Regenerates the synthetic PDF, JPEG, PNG, scan, and photo |
+| `tools/render-photo.mjs` | Draws the scan and photo from DejaVu Sans Mono |
 | `tools/serve.mjs` | Static server. Walks the next free ports and prints the URL. |
 
 ## Taxonomy
@@ -105,12 +109,12 @@ Shipped now:
 Shipped as Phase 2 ingest, still on the frozen score and present path:
 
 - Text-layer PDF in, and a label-font JPEG or PNG in
-- Confidence floor, provenance, and blanks left blank
+- OCR of an image-only PDF or a photo of the same anonymized labels, in the browser
+- Confidence floor, a higher watch floor for types 13, 14, and 15, provenance, and blanks left blank
 - Synthetic samples only. No live client file in `samples/` or `fixtures/`
 
 Not in this repo:
 
-- OCR of a phone photo or an image-only scan
 - E-file, Drake, UltraTax, ProConnect, or any other tax product
 - Pricing, proposals, or engagement letters
 - A model writing the card text
@@ -143,7 +147,10 @@ Types 14 and 15 are the exception: their present copy is the single locked sente
 ## Check
 
 ```bash
+npm install
 npm run check
 ```
 
-The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, or if a fixture contains an SSN- or EIN-shaped number.
+`npm install` loads tesseract.js for the checker. The Pages site does not use `node_modules`; it loads `vendor/ocr/`.
+
+The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan and photo samples invent a zero or raise types 13, 14, or 15 from a blank.

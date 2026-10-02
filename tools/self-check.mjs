@@ -11,12 +11,17 @@ import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS } from "../js/score.js";
 import { FIXED_COPY } from "../js/present.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
 import { parseFixtureText } from "../js/intake.js";
-import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR } from "../js/ingest.js";
-import { buildTextPdf, extractPdfText } from "../js/pdf-text.js";
-import { AUGUSTA_PDF_LINES, REP_JPEG_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
-import { renderLabelRaster } from "../js/raster-label.js";
-import { encodeGrayJpeg } from "../js/jpeg-gray.js";
+import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR, OCR_WATCH_FLOOR } from "../js/ingest.js";
+import { buildFlateGrayPdf, buildImagePdf, buildTextPdf, buildUnsupportedImagePdf, extractPdfText } from "../js/pdf-text.js";
+import { extractPdfPageImages } from "../js/pdf-images.js";
+import { decodeGrayPng } from "../js/png-gray.js";
+import { AUGUSTA_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
+import { renderLabelRaster, readLabelRaster } from "../js/raster-label.js";
+import { encodeGrayJpeg, decodeGrayJpeg } from "../js/jpeg-gray.js";
 import { encodeGrayPng } from "../js/png-gray.js";
+import { LOW_OCR_REASON, WATCH_OCR_REASON } from "../js/ingest-fields.js";
+import { shutdownOcr, TESSERACT_VERSION } from "../js/ocr.js";
+import { renderPacketJpeg } from "./render-photo.mjs";
 import { deflateSync } from "node:zlib";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -495,9 +500,154 @@ async function checkIngest() {
   } catch {
     /* expected */
   }
+
+  const shakyLines = [
+    "ANON: TRUE",
+    "FILER: FILER-401",
+    "TAX YEAR: 2025",
+    "SCHEDULE C: YES",
+    "SE INCOME: 88000",
+    "RETIREMENT DEDUCTION: 0",
+    "VEHICLE SIGNAL: YES",
+    "HOME OWNERSHIP SOURCE: 1098",
+    "BUILDING BASIS: 400000",
+    "PIS OR REMODEL YEAR: 2024",
+    "PRIOR COST SEG: NO",
+    "DEPENDENT RELATIONSHIP: DAUGHTER",
+    "LARGE REFUND: 20000",
+  ];
+  const shaky = parseDocumentText(shakyLines.join("\n"), {
+    sourceKind: "pdf-ocr",
+    ocr: true,
+    confidences: [0.97, 0.97, 0.97, 0.96, 0.96, 0.96, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.5],
+  });
+  if (shaky.fields.retirement_deduction !== 0) fail("OCR explicit retirement zero was dropped");
+  if (shaky.fields.se_income !== 88000) fail("OCR self-employment income was dropped");
+  if (shaky.fields.vehicle_signal !== true) fail("a non-watch line at 0.85 was dropped");
+  if ("home_ownership_source" in shaky.fields || "building_basis" in shaky.fields || "pis_or_remodel_year" in shaky.fields) {
+    fail("a watch-floor line was stored");
+  }
+  if ("dependent_relationship" in shaky.fields || "large_refund" in shaky.fields || "prior_cost_seg" in shaky.fields) {
+    fail("a low-confidence Augusta, hire-kids, cost-seg, or refund line was stored");
+  }
+  if (shaky.ingest.ocrWatchFloor !== OCR_WATCH_FLOOR) fail("OCR watch floor was not recorded");
+  if (!shaky.ingest.dropped.some((row) => row.reason === WATCH_OCR_REASON)) fail("watch-floor omission was not recorded");
+  if (!shaky.ingest.dropped.some((row) => row.reason === LOW_OCR_REASON && row.evidence.startsWith("LARGE REFUND"))) {
+    fail("below-floor OCR line was not omitted");
+  }
+  if (shaky.ingest.accepted.some((row) => row.confidence < CONFIDENCE_FLOOR)) fail("OCR kept a field below the floor");
+  const shakyFields = extractFields(shaky);
+  const shakyScored = scoreAll(shakyFields);
+  if (bandOf(shakyScored, "3") !== "High") fail("confident explicit retirement zero did not score");
+  if (bandOf(shakyScored, "8b") !== "Medium") fail("vehicle line above the floor did not score");
+  if (bandOf(shakyScored, "13") !== "silent") fail("low-confidence cost segregation raised a card");
+  if (bandOf(shakyScored, "14") !== "silent") fail("low-confidence Augusta raised a card");
+  if (bandOf(shakyScored, "15") !== "silent") fail("low-confidence hire-kids raised a card");
+  if (bandOf(shakyScored, "16") !== "silent") fail("below-floor refund was treated as a number");
+  if (shakyFields.large_refund !== 0) fail("omitted refund became a stored zero");
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  if (pkg.dependencies["tesseract.js"] !== TESSERACT_VERSION) {
+    fail(`tesseract.js pin ${pkg.dependencies["tesseract.js"]} does not match vendor/ocr ${TESSERACT_VERSION}`);
+  }
+  const trained = fs.readFileSync(path.join(root, "vendor/ocr/tessdata/eng.traineddata.gz"));
+  if (trained[0] !== 0x1f || trained[1] !== 0x8b) fail("English traineddata is not gzip bytes");
+
+  const scanImage = await renderPacketJpeg(SCAN_PDF_LINES);
+  const scanPdf = buildImagePdf(scanImage.jpeg, scanImage.width, scanImage.height);
+  const photo = await renderPacketJpeg(PHOTO_SEP_LINES);
+  const scanPath = path.join(root, "samples/ingest/synthetic-scan-augusta.pdf");
+  const photoPath = path.join(root, "samples/ingest/synthetic-photo-sep.jpg");
+  const scanBytes = new Uint8Array(fs.readFileSync(scanPath));
+  const photoBytes = new Uint8Array(fs.readFileSync(photoPath));
+  if (!sameBytes(scanBytes, scanPdf)) fail("synthetic scan PDF drifted from its page image");
+  if (!sameBytes(photoBytes, photo.jpeg)) fail("synthetic photo JPEG drifted from its lines");
+
+  try {
+    await extractPdfText(scanBytes);
+    fail("scan PDF exposed a text layer");
+  } catch (error) {
+    if (!String(error.message).startsWith("No text layer in this PDF.")) fail("scan PDF did not fail closed before OCR");
+  }
+  const decodedPhoto = decodeGrayJpeg(photoBytes);
+  if (readLabelRaster(decodedPhoto.gray, decodedPhoto.width, decodedPhoto.height).lines.length) {
+    fail("photo JPEG matched the label font");
+  }
+
+  const scanPacket = await ingestDocument({ name: "synthetic-scan-augusta.pdf", bytes: scanBytes });
+  if (scanPacket.ingest.sourceKind !== "pdf-ocr") fail(`scan source was ${scanPacket.ingest.sourceKind}`);
+  const scanBands = packetBands(scanPacket);
+  if (!idsEqual(scanBands.high, ["14"]) || !idsEqual(scanBands.medium, ["8b"])) {
+    fail(`scan PDF bands High ${scanBands.high} Medium ${scanBands.medium}`);
+  }
+  const scanAugusta = scanBands.evaluation.cards.find((card) => card.typeId === "14");
+  if (!scanAugusta || scanAugusta.copy !== FIXED_COPY[14]) fail("scanned Augusta copy drifted");
+  if ("retirement_deduction" in scanPacket.fields) fail("scan blank retirement was emitted");
+  if (extractFields(scanPacket).retirement_deduction !== null) fail("scan blank retirement became a number");
+  if (extractFields(scanPacket).hours_log_rep !== null) fail("scan blank hours became a number");
+  if (extractFields(scanPacket).form_1098t !== false) fail("scan invented a 1098-T");
+  const scanFields = extractFields(scanPacket);
+  const scanScored = scoreAll(scanFields);
+  if (bandOf(scanScored, "13") !== "silent") fail("scan raised cost segregation");
+  if (bandOf(scanScored, "15") !== "silent") fail("scan raised hire-kids");
+  if (bandOf(scanScored, "12") !== "silent") fail("scan education without 1098-T scored");
+  if (scanPacket.ingest.accepted.some((row) => row.confidence < CONFIDENCE_FLOOR)) fail("scan kept a line below the floor");
+
+  const photoPacket = await ingestDocument({ name: "synthetic-photo-sep.jpg", bytes: photoBytes });
+  if (photoPacket.ingest.sourceKind !== "jpeg-ocr") fail(`photo source was ${photoPacket.ingest.sourceKind}`);
+  const photoBands = packetBands(photoPacket);
+  if (!idsEqual(photoBands.high, ["3"]) || photoBands.medium.length) {
+    fail(`photo bands High ${photoBands.high} Medium ${photoBands.medium}`);
+  }
+  if (photoPacket.fields.retirement_deduction !== 0) fail("photo explicit retirement zero was not read");
+  if (photoPacket.fields.se_income !== 88000) fail("photo self-employment income was not read");
+  if ("hours_log_rep" in photoPacket.fields) fail("photo blank hours were stored");
+  if ("building_basis" in photoPacket.fields) fail("photo blank basis was stored");
+  if (extractFields(photoPacket).hours_log_rep !== null) fail("photo blank hours became a number");
+  const photoFields = extractFields(photoPacket);
+  const photoScored = scoreAll(photoFields);
+  if (bandOf(photoScored, "13") !== "silent") fail("photo raised cost segregation");
+  if (bandOf(photoScored, "14") !== "silent") fail("photo raised Augusta");
+  if (bandOf(photoScored, "15") !== "silent") fail("photo raised hire-kids");
+  if (photoFields.nua_company_stock !== false || photoFields.qsbs_five_year_or_explicit !== false) {
+    fail("photo filled a missing NUA or QSBS half");
+  }
+  const sepCopy = photoBands.evaluation.cards.find((card) => card.typeId === "3");
+  if (!sepCopy || !copyShapeOk(sepCopy.copy, "3")) fail("photo SEP present copy shape");
+
+  const flatePdf = buildFlateGrayPdf(photo.gray, photo.width, photo.height, (bytes) => deflateSync(bytes));
+  const flateImages = await extractPdfPageImages(flatePdf);
+  if (flateImages.images.length !== 1 || flateImages.images[0].mime !== "image/png") {
+    fail("FlateDecode page image was not read");
+  }
+  const flateGray = await decodeGrayPng(flateImages.images[0].bytes);
+  if (flateGray.width !== photo.width || flateGray.height !== photo.height || !sameBytes(flateGray.gray, photo.gray)) {
+    fail("FlateDecode page image did not round-trip");
+  }
+  const flatePacket = await ingestDocument({ name: "flate-scan.pdf", bytes: flatePdf });
+  if (flatePacket.ingest.sourceKind !== "pdf-ocr") fail("FlateDecode scan did not OCR");
+  if (flatePacket.fields.retirement_deduction !== 0 || flatePacket.fields.se_income !== 88000) {
+    fail("FlateDecode scan did not read the explicit amounts");
+  }
+  if ("hours_log_rep" in flatePacket.fields || "building_basis" in flatePacket.fields) {
+    fail("FlateDecode scan stored a blank amount");
+  }
+
+  try {
+    await ingestDocument({ name: "jbig2.pdf", bytes: buildUnsupportedImagePdf("JBIG2Decode") });
+    fail("JBIG2 scan produced a packet");
+  } catch (error) {
+    if (!/JBIG2Decode/.test(error.message) || !/not filled with zero/.test(error.message)) {
+      fail(`JBIG2 refusal was ${error.message}`);
+    }
+  }
 }
 
-await checkIngest();
+try {
+  await checkIngest();
+} finally {
+  await shutdownOcr();
+}
 
 const neverHigh = ["3b", "5", "5b", "7b", "8a", "8b", "16", "19", "21", "22", "23", "24", "25", "26"];
 for (const item of manifest.fixtures) {

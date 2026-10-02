@@ -26,6 +26,9 @@ const types = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
+  ".gz": "application/octet-stream",
+  ".wasm": "application/wasm",
+  ".ttf": "font/ttf",
 };
 
 function preferredPort(raw = process.env.PORT) {
