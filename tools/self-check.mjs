@@ -11,6 +11,13 @@ import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS } from "../js/score.js";
 import { FIXED_COPY } from "../js/present.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
 import { parseFixtureText } from "../js/intake.js";
+import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR } from "../js/ingest.js";
+import { buildTextPdf, extractPdfText } from "../js/pdf-text.js";
+import { AUGUSTA_PDF_LINES, REP_JPEG_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
+import { renderLabelRaster } from "../js/raster-label.js";
+import { encodeGrayJpeg } from "../js/jpeg-gray.js";
+import { encodeGrayPng } from "../js/png-gray.js";
+import { deflateSync } from "node:zlib";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -272,6 +279,225 @@ expectBand("roth both signals", { trad_ira_or_401k: true, low_ti_year: true }, {
 expectBand("energy docs", { residential_energy_docs: true }, { 21: "Medium" });
 expectBand("sehi on schedule c", { schedule_c: true, sehi_gap: true }, { 19: "Medium" });
 expectBand("sehi without the business return", { sehi_gap: true }, { 19: "silent" });
+
+function sameBytes(left, right) {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
+function packetBands(packet) {
+  const evaluation = evaluateFixture(packet, typesById);
+  return {
+    evaluation,
+    high: evaluation.cards.filter((card) => card.band === "High").map((card) => card.typeId),
+    medium: evaluation.cards.filter((card) => card.band === "Medium").map((card) => card.typeId),
+  };
+}
+
+function idsEqual(actual, expected) {
+  return actual.length === expected.length && actual.every((id, index) => id === expected[index]);
+}
+
+async function checkIngest() {
+  const blank = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-301",
+    "TAX YEAR: 2025",
+    "SCHEDULE C: YES",
+    "SE INCOME: 88000",
+    "RETIREMENT DEDUCTION:",
+    "HOURS LOG REP:",
+    "DEPENDENT AGES:",
+    "BUILDING BASIS:",
+  ].join("\n"), { sourceKind: "text" });
+  if ("retirement_deduction" in blank.fields) fail("blank retirement was stored");
+  if ("hours_log_rep" in blank.fields) fail("blank hours were stored");
+  if ("dependent_ages" in blank.fields) fail("blank ages were stored");
+  if ("building_basis" in blank.fields) fail("blank basis was stored");
+  const blankFields = extractFields(blank);
+  if (blankFields.retirement_deduction !== null) fail("blank retirement became a number");
+  if (blankFields.hours_log_rep !== null) fail("blank hours became a number");
+  if (bandOf(scoreAll(blankFields), "3") !== "silent") fail("blank retirement scored as zero");
+  if (bandOf(scoreAll(blankFields), "18") !== "silent") fail("blank hours scored REP");
+
+  const explicitZero = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-302",
+    "TAX YEAR: 2025",
+    "SE INCOME: 88000",
+    "RETIREMENT DEDUCTION: 0",
+    "OFFICER W2: 0",
+    "DISTRIBUTIONS: 80000",
+    "S CORP: YES",
+  ].join("\n"), { sourceKind: "text" });
+  if (explicitZero.fields.retirement_deduction !== 0) fail("explicit retirement zero was dropped");
+  const zeroFields = extractFields(explicitZero);
+  if (bandOf(scoreAll(zeroFields), "3") !== "High") fail("explicit retirement zero did not score");
+  if (bandOf(scoreAll(zeroFields), "2") !== "High") fail("explicit zero officer wage did not score");
+
+  const partialWage = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-303",
+    "S CORP: YES",
+    "DISTRIBUTIONS: 80000",
+  ].join("\n"), { sourceKind: "text" });
+  if ("distributions" in partialWage.fields || "officer_w2" in partialWage.fields) {
+    fail("distributions without officer W-2 were kept");
+  }
+  if (bandOf(scoreAll(extractFields(partialWage)), "2") !== "silent") fail("missing officer wage scored as zero");
+
+  const partialQbi = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-304",
+    "QBI INCOME: 80000",
+    "TENTATIVE DEDUCTION: 16000",
+  ].join("\n"), { sourceKind: "text" });
+  if ("qbi_fields" in partialQbi.fields) fail("partial QBI was kept");
+  if (bandOf(scoreAll(extractFields(partialQbi)), "1") !== "silent") fail("partial QBI zero-filled a deduction");
+
+  const partial179 = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-305",
+    "SECTION 179 ADDS: 100000",
+    "TI ABSORBS: YES",
+  ].join("\n"), { sourceKind: "text" });
+  if ("section_179_bonus" in partial179.fields) fail("one-sided section 179 was kept");
+  if (bandOf(scoreAll(extractFields(partial179)), "9") !== "silent") fail("missing 179 taken was treated as zero");
+
+  const atomic = parseDocumentText([
+    "ANON: TRUE",
+    "FILER: FILER-306",
+    "SCHEDULE C: YES",
+    "NUA: YES",
+    "QSBS: YES",
+    "NUA EMPLOYER PLAN 1099R: YES",
+    "QSBS C CORP DISPOSAL: YES",
+    "HO CONTEXT: MAYBE",
+    "HOME OWNERSHIP SOURCE: 8829",
+    "HOME OWNERSHIP DOC: YES",
+    "EDU CREDIT GAP: YES",
+    "SCH E RE LOSS: YES",
+    "BUILDING BASIS: UNKNOWN",
+    "PIS OR REMODEL YEAR: 2024",
+    "DEPENDENT RELATIONSHIP: DAUGHTER",
+    "COST SEG: MAYBE",
+  ].join("\n"), { sourceKind: "text" });
+  if (atomic.fields.nua_company_stock === true || atomic.fields.qsbs_five_year_or_explicit === true) {
+    fail("a single NUA or QSBS line filled the other half");
+  }
+  if ("ho_context" in atomic.fields) fail("hedged home-office context was stored");
+  if ("building_basis" in atomic.fields) fail("unknown basis was stored");
+  if (atomic.fields.pis_or_remodel_year !== 2024) fail("explicit remodel year was dropped");
+  const atomicFields = extractFields(atomic);
+  if (atomicFields.home_ownership_doc !== false || atomicFields.ownership_rejected_as_8829 !== true) {
+    fail("8829 was treated as ownership");
+  }
+  const atomicScored = scoreAll(atomicFields);
+  if (bandOf(atomicScored, "14") !== "silent") fail("8829 ownership raised Augusta");
+  if (bandOf(atomicScored, "12") !== "silent") fail("education without 1098-T raised a card");
+  if (bandOf(atomicScored, "18") !== "silent") fail("REP without hours raised a card");
+  if (bandOf(atomicScored, "13") !== "silent") fail("unknown basis raised cost segregation");
+  if (bandOf(atomicScored, "23") !== "silent") fail("one-sided NUA raised a card");
+  if (bandOf(atomicScored, "25") !== "silent") fail("one-sided QSBS raised a card");
+  if (bandOf(atomicScored, "8a") !== "silent") fail("hedged home-office context raised a card");
+  if (bandOf(atomicScored, "15") !== "High") fail("explicit daughter did not score hire-kids");
+  if (atomic.ingest.accepted.some((row) => row.confidence < CONFIDENCE_FLOOR)) {
+    fail("a field below the confidence floor was kept");
+  }
+
+  try {
+    parseDocumentText("ANON: TRUE\nFILER: FILER-307\nMEMO: 123-45-6789\n", { sourceKind: "text" });
+    fail("ingest accepted an SSN");
+  } catch {
+    /* expected */
+  }
+  try {
+    parseDocumentText("ANON: FALSE\nFILER: FILER-308\nSCHEDULE C: YES\n", { sourceKind: "text" });
+    fail("ingest accepted anon false");
+  } catch {
+    /* expected */
+  }
+
+  const compressed = buildTextPdf(AUGUSTA_PDF_LINES, { deflate: (bytes) => deflateSync(bytes) });
+  const inflated = await extractPdfText(compressed);
+  if (inflated !== AUGUSTA_PDF_LINES.join("\n")) fail("FlateDecode PDF text did not round-trip");
+
+  const pdfPath = path.join(root, "samples/ingest/synthetic-augusta.pdf");
+  const jpegPath = path.join(root, "samples/ingest/synthetic-rep-hours.jpg");
+  const pngPath = path.join(root, "samples/ingest/synthetic-silent-misses.png");
+  const pdfBytes = new Uint8Array(fs.readFileSync(pdfPath));
+  const jpegBytes = new Uint8Array(fs.readFileSync(jpegPath));
+  const pngBytes = new Uint8Array(fs.readFileSync(pngPath));
+  if (!sameBytes(pdfBytes, buildTextPdf(AUGUSTA_PDF_LINES))) fail("synthetic Augusta PDF drifted from its lines");
+  const jpegRaster = renderLabelRaster(REP_JPEG_LINES);
+  if (!sameBytes(jpegBytes, encodeGrayJpeg(jpegRaster.gray, jpegRaster.width, jpegRaster.height))) {
+    fail("synthetic REP JPEG drifted from its lines");
+  }
+
+  const pdfPacket = await ingestDocument({ name: "synthetic-augusta.pdf", bytes: pdfBytes });
+  const pdfBands = packetBands(pdfPacket);
+  if (!idsEqual(pdfBands.high, ["14"]) || !idsEqual(pdfBands.medium, ["8b"])) {
+    fail(`Augusta PDF bands High ${pdfBands.high} Medium ${pdfBands.medium}`);
+  }
+  const augusta = pdfBands.evaluation.cards.find((card) => card.typeId === "14");
+  if (!augusta || augusta.copy !== FIXED_COPY[14]) fail("ingested Augusta copy drifted");
+  if (!("retirement_deduction" in pdfPacket.fields) && extractFields(pdfPacket).retirement_deduction !== null) {
+    fail("PDF blank retirement did not stay null");
+  }
+  if ("retirement_deduction" in pdfPacket.fields) fail("PDF blank retirement was emitted");
+  if (pdfPacket.ingest.dropped.some((row) => /SSN|EIN/.test(row.evidence || ""))) fail("sample PDF looks identified");
+
+  const jpegPacket = await ingestDocument({ name: "synthetic-rep-hours.jpg", bytes: jpegBytes });
+  const jpegBands = packetBands(jpegPacket);
+  if (!idsEqual(jpegBands.high, ["18"]) || !idsEqual(jpegBands.medium, ["5"])) {
+    fail(`REP JPEG bands High ${jpegBands.high} Medium ${jpegBands.medium}`);
+  }
+  if (jpegPacket.fields.hours_log_rep !== 820) fail("JPEG hours were not read");
+  if ("building_basis" in jpegPacket.fields) fail("JPEG unknown basis was stored");
+  if (extractFields(jpegPacket).home_ownership_doc !== false) fail("JPEG 8829 was treated as ownership");
+  if (extractFields(jpegPacket).form_1098t !== false) fail("JPEG blank 1098-T became true");
+  const repCopy = jpegBands.evaluation.cards.find((card) => card.typeId === "18");
+  if (!repCopy || !copyShapeOk(repCopy.copy, "18")) fail("ingested REP present copy shape");
+
+  const pngPacket = await ingestDocument({ name: "synthetic-silent-misses.png", bytes: pngBytes });
+  const pngBands = packetBands(pngPacket);
+  if (pngBands.high.length || pngBands.medium.length) {
+    fail(`silent PNG raised High ${pngBands.high} Medium ${pngBands.medium}`);
+  }
+  const pngFields = extractFields(pngPacket);
+  if (pngFields.home_ownership_doc !== false || pngFields.ownership_rejected_as_8829 !== true) {
+    fail("PNG 8829 was treated as ownership");
+  }
+  if (pngFields.hours_log_rep !== null) fail("PNG blank hours became a number");
+  if (pngFields.form_1098t !== false) fail("PNG education invented a 1098-T");
+  if ("building_basis" in pngPacket.fields) fail("PNG unknown basis was stored");
+  if (pngFields.nua_company_stock !== false || pngFields.qsbs_five_year_or_explicit !== false) {
+    fail("PNG filled a missing NUA or QSBS half");
+  }
+  if (pngFields.ho_context !== false) fail("PNG hedged home-office context was stored");
+  if (bandOf(scoreAll(pngFields), "12") !== "silent") fail("PNG education without 1098-T scored");
+  if (bandOf(scoreAll(pngFields), "13") !== "silent") fail("PNG cost segregation overfired");
+  if (bandOf(scoreAll(pngFields), "14") !== "silent") fail("PNG Augusta overfired");
+  if (bandOf(scoreAll(pngFields), "15") !== "silent") fail("PNG hire-kids overfired");
+  if (bandOf(scoreAll(pngFields), "18") !== "silent") fail("PNG REP without hours scored");
+
+  const pngRaster = renderLabelRaster(SILENT_PNG_LINES);
+  const encodedPng = await encodeGrayPng(pngRaster.gray, pngRaster.width, pngRaster.height);
+  if (!sameBytes(pngBytes, encodedPng)) fail("synthetic silent PNG drifted from its lines");
+
+  const noise = encodeGrayJpeg(new Uint8Array(64 * 64).fill(180), 64, 64);
+  try {
+    await ingestDocument({ name: "noise.jpg", bytes: noise });
+    fail("a non-label JPEG produced a packet");
+  } catch {
+    /* expected */
+  }
+}
+
+await checkIngest();
 
 const neverHigh = ["3b", "5", "5b", "7b", "8a", "8b", "16", "19", "21", "22", "23", "24", "25", "26"];
 for (const item of manifest.fixtures) {

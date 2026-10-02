@@ -60,7 +60,7 @@ The left rail lists 20 synthetic packets. Pick one. The main pane runs that pack
 
 The header counts how many fixtures match the `expected` block in their JSON. That count is the same check as `npm run check`.
 
-The drop zone accepts a local fixture JSON file only. It refuses PDFs, files with an SSN or EIN pattern, and objects that are not `anon: true`.
+The drop zone accepts a local fixture JSON file, a text-layer PDF, or a labeled JPEG/PNG. It refuses files with an SSN or EIN pattern, objects that are not `anon: true`, scans with no text layer, and photographs that are not the label font. Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
 
 ## Layout
 
@@ -69,7 +69,10 @@ The drop zone accepts a local fixture JSON file only. It refuses PDFs, files wit
 | `index.html` | Dashboard shell |
 | `css/app.css` | Layout. No build step. |
 | `js/app.js` | Picker, drop zone, cards |
-| `js/intake.js` | Ingest stub |
+| `js/intake.js` | JSON fixture gate |
+| `js/ingest.js` | PDF text layer and labeled JPEG/PNG |
+| `js/ingest-fields.js` | Fail-closed field parser |
+| `samples/ingest/` | Synthetic PDF, JPEG, and PNG. Not fixture JSON. |
 | `js/extract.js` | Fields only |
 | `js/score.js` | High / Medium / silent |
 | `js/present.js` | Fixed present copy and talk bans |
@@ -82,6 +85,7 @@ The drop zone accepts a local fixture JSON file only. It refuses PDFs, files wit
 | `.nojekyll` | Publishes the repo as static files. Pages does not run Jekyll. |
 | `tools/self-check.mjs` | Fixture expectations and floor boundaries |
 | `tools/build-fixtures.mjs` | Regenerates the JSON pack |
+| `tools/write-ingest-samples.mjs` | Regenerates the synthetic PDF, JPEG, and PNG |
 | `tools/serve.mjs` | Static server. Walks the next free ports and prints the URL. |
 
 ## Taxonomy
@@ -98,14 +102,21 @@ Shipped now:
 - Talk bans, including the fixed Augusta and hire-kids lines
 - Silent twins so a near miss does not become a card
 
+Shipped as Phase 2 ingest, still on the frozen score and present path:
+
+- Text-layer PDF in, and a label-font JPEG or PNG in
+- Confidence floor, provenance, and blanks left blank
+- Synthetic samples only. No live client file in `samples/` or `fixtures/`
+
 Not in this repo:
 
-- OCR or a parser for a real return
+- OCR of a phone photo or an image-only scan
 - E-file, Drake, UltraTax, ProConnect, or any other tax product
 - Pricing, proposals, or engagement letters
 - A model writing the card text
+- Firm-locked replacements for the research dollar floors in `STUB_FLOORS`
 
-Phase 2 can replace ingest. It should keep extract free of narrative and keep present copy on the bans.
+Ingest can grow. Extract stays free of narrative, and present copy stays on the bans.
 
 ## Add a fixture
 

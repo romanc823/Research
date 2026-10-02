@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+samples/ingest/*.pdf binary
+samples/ingest/*.jpg binary
+samples/ingest/*.jpeg binary
+samples/ingest/*.png binary

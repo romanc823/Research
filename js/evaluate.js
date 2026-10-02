@@ -1,6 +1,6 @@
 /**
  * Glue for the research UI and the fixture checker.
- * Drop → the fixture is already a packet (ingest stub) → extract → score → present.
+ * Drop → ingest (JSON fixture or Phase 2 document) → extract → score → present.
  */
 
 import { extractFields, assertFieldsOnly } from "./extract.js";

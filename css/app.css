@@ -142,6 +142,29 @@ select { padding: 10px 12px; }
 
 .drop-error { color: var(--bad); }
 
+.sample-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.sample-row button {
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ingest-summary { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+
+.ingest h4 {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ingest li { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+
 .group h2 {
   margin: 16px 0 8px;
   font-size: 12px;

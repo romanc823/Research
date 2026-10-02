@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node tools/serve.mjs",
     "check": "node tools/self-check.mjs",
-    "fixtures": "node tools/build-fixtures.mjs"
+    "fixtures": "node tools/build-fixtures.mjs",
+    "ingest-samples": "node tools/write-ingest-samples.mjs"
   }
 }
