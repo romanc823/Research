@@ -70,7 +70,8 @@ function renderRail() {
     if (!items.length) return "";
     const buttons = items.map((item) => {
       const active = item.id === state.selectedId ? " is-active" : "";
-      const check = state.checks.get(item.id);
+      const packet = state.packets.get(item.id);
+      const check = packet?.fixture?.expected ? state.checks.get(item.id) : null;
       const mark = check ? (check.ok ? "ok" : "bad") : "pending";
       return `<button type="button" class="fixture${active}" data-fixture="${esc(item.id)}">
         <span class="mark mark-${mark}" aria-hidden="true"></span>
@@ -240,7 +241,12 @@ function renderStage() {
 }
 
 function renderStatus() {
-  const checked = [...state.checks.values()];
+  const checked = [];
+  for (const [id, packet] of state.packets) {
+    if (!packet.fixture?.expected) continue;
+    const check = state.checks.get(id);
+    if (check) checked.push(check);
+  }
   if (!checked.length) {
     checkSlot.textContent = "Loading fixtures…";
     return;
