@@ -21,11 +21,17 @@ The left rail should list the anonymized fixtures. After a push to `main`, Pages
 
 ### Drop a PDF or image
 
-The drop zone on that page also accepts a text-layer PDF or a labeled JPEG/PNG. The file stays in the browser. Pages does not run OCR.
+The drop zone on that page accepts a fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. The file stays in the browser. OCR uses the copies of Tesseract under `vendor/ocr/` on this site. The first scan can take a few seconds while that engine loads. Nothing is uploaded.
 
-Three sample buttons load synthetic packets (no client data): a PDF that should show Augusta as High and a vehicle line on the tray, a JPEG that should show REP hours as High and Form 8283 on the tray, and a PNG that should stay silent. Blank retirement, blank hours, Form 8829 used as ownership, and education without Form 1098-T stay off the cards.
+Five sample buttons load synthetic packets (no client data):
 
-A photograph or a scan with no text layer is refused. Missing amounts are not filled with zero. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
+- **Sample PDF** — text layer. Augusta is High. A vehicle line is on the tray.
+- **Sample JPEG** — label font. REP hours are High. Form 8283 is on the tray.
+- **Sample PNG** — label font. The packet stays silent.
+- **Sample scan** — image-only PDF. OCR should show the same Augusta card as the text PDF. Blank retirement stays blank.
+- **Sample photo** — not the label font. OCR should show the SEP / Solo card from an explicit retirement zero. Blank hours and blank basis stay blank.
+
+OCR runs when a PDF has no text layer, or when a JPEG/PNG is not the label font. It still refuses a page it cannot read: JBIG2, CCITT, or JPEG2000 scans; a page with no `ANON: TRUE` and `FILER-###` above the confidence floor (0.8); and any SSN or EIN pattern. Lines under that floor are omitted. Lines that would raise cost segregation, Augusta, or hire-kids (types 13, 14, and 15) need 0.9. Missing amounts are not filled with zero. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
 
 Do not open `index.html` from Finder or Explorer. A `file://` tab blocks ES modules and `fetch`.
 
@@ -45,7 +51,7 @@ GitHub Free cannot publish Pages from a private repository, so this repository i
    npm start
    ```
 
-   That runs `tools/serve.mjs` with Node's built-in `http` module. No packages are installed. It binds `127.0.0.1` only.
+   That runs `tools/serve.mjs` with Node's built-in `http` module. It binds `127.0.0.1` only. The page loads OCR from `vendor/ocr/` on that same origin. `npm install` is only for `npm run check` and for regenerating samples.
 
 4. Read the last line. It is the only local URL to open, for example:
 

@@ -140,7 +140,8 @@ select { padding: 10px 12px; }
 
 .file-btn input { display: none; }
 
-.drop-error { color: var(--bad); }
+.drop-note { color: var(--muted); }
+.drop-note.is-error { color: var(--bad); }
 
 .sample-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 

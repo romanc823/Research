@@ -4,3 +4,6 @@ samples/ingest/*.pdf binary
 samples/ingest/*.jpg binary
 samples/ingest/*.jpeg binary
 samples/ingest/*.png binary
+vendor/ocr/tessdata/*.gz binary
+vendor/ocr/core/*.wasm.js binary
+vendor/fonts/*.ttf binary

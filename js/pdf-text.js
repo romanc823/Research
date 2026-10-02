@@ -1,6 +1,7 @@
 /**
  * Text-layer PDF reader. Uncompressed streams and FlateDecode are read.
- * Image-only scans have no operators to read, so they fail closed.
+ * Image-only scans have no text operators. extractPdfText fails closed
+ * so ingest can OCR the page image instead of inventing amounts.
  */
 
 import { inflateZlib } from "./inflate-zlib.js";
@@ -207,13 +208,18 @@ export function textFromContent(content) {
   return lines.join("\n");
 }
 
-export async function extractPdfText(bytes) {
+/**
+ * Streams whose dictionaries are short PDF objects. A binary page image
+ * can contain the letters "stream"; those hits are skipped because the
+ * dictionary between "<<" and the keyword is not a small object header.
+ */
+export function readPdfStreams(bytes) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (data.length < 5 || data[0] !== 0x25 || data[1] !== 0x50) {
     throw new Error("This file is not a PDF.");
   }
   const fileText = latin1(data);
-  const chunks = [];
+  const streams = [];
   let search = 0;
   while (search < fileText.length) {
     const at = fileText.indexOf("stream", search);
@@ -226,16 +232,102 @@ export async function extractPdfText(bytes) {
     let start = at + 6;
     if (fileText[start] === "\r") start += 1;
     if (fileText[start] === "\n") start += 1;
-    const end = fileText.indexOf("endstream", start);
-    if (end < 0) break;
     const dictAt = fileText.lastIndexOf("<<", at);
     const dict = dictAt >= 0 ? fileText.slice(dictAt, at) : "";
+    if (!dict || dict.length > 8000) {
+      search = at + 6;
+      continue;
+    }
     const length = resolveLength(dict, fileText);
+    const endFrom = length != null ? Math.min(start + length, fileText.length) : start;
+    const end = fileText.indexOf("endstream", endFrom);
+    if (end < 0) break;
     const sliceEnd = length != null ? start + length : end;
     const raw = data.subarray(start, Math.min(sliceEnd, data.length));
+    streams.push({ dict, raw });
     search = end + 9;
+  }
+  return streams;
+}
 
-    if (/\/Subtype\s*\/Image/.test(dict) || /\/Image\b/.test(dict)) continue;
+export function buildImagePdf(jpeg, width, height) {
+  const image = jpeg instanceof Uint8Array ? jpeg : new Uint8Array(jpeg);
+  const content = bytesFromLatin1("q\n612 0 0 792 0 0 cm\n/Im0 Do\nQ\n");
+  return buildSingleImagePdf({
+    content,
+    dict: `/Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.length}`,
+    stream: image,
+  });
+}
+
+export function buildFlateGrayPdf(gray, width, height, deflate) {
+  const raw = gray instanceof Uint8Array ? gray : new Uint8Array(gray);
+  if (raw.length !== width * height) throw new Error("Gray buffer does not match its size.");
+  const deflated = deflate(raw);
+  const stream = deflated instanceof Uint8Array ? deflated : new Uint8Array(deflated);
+  const content = bytesFromLatin1("q\n612 0 0 792 0 0 cm\n/Im0 Do\nQ\n");
+  return buildSingleImagePdf({
+    content,
+    dict: `/Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${stream.length}`,
+    stream,
+  });
+}
+
+export function buildUnsupportedImagePdf(filterName) {
+  const stream = bytesFromLatin1("not-an-image");
+  const content = bytesFromLatin1("q\n612 0 0 792 0 0 cm\n/Im0 Do\nQ\n");
+  return buildSingleImagePdf({
+    content,
+    dict: `/Type /XObject /Subtype /Image /Width 8 /Height 8 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /${filterName} /Length ${stream.length}`,
+    stream,
+  });
+}
+
+function buildSingleImagePdf({ content, dict, stream }) {
+  const parts = [];
+  const offsets = [0];
+  function here() {
+    return parts.reduce((sum, part) => sum + part.length, 0);
+  }
+  function push(part) {
+    parts.push(part);
+  }
+  function obj(id, body) {
+    offsets[id] = here();
+    push(body);
+  }
+
+  push("%PDF-1.4\n");
+  obj(1, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  obj(2, "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+  obj(3, "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>\nendobj\n");
+  offsets[4] = here();
+  push(`4 0 obj\n<< /Length ${content.length} >>\nstream\n`);
+  push(content);
+  push("\nendstream\nendobj\n");
+  offsets[5] = here();
+  push(`5 0 obj\n<< ${dict} >>\nstream\n`);
+  push(stream);
+  push("\nendstream\nendobj\n");
+
+  const xrefAt = here();
+  let xref = "xref\n0 6\n0000000000 65535 f \n";
+  for (let id = 1; id <= 5; id += 1) {
+    xref += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  }
+  xref += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+  push(xref);
+  return concat(parts);
+}
+
+export async function extractPdfText(bytes) {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (data.length < 5 || data[0] !== 0x25 || data[1] !== 0x50) {
+    throw new Error("This file is not a PDF.");
+  }
+  const chunks = [];
+  for (const { dict, raw } of readPdfStreams(data)) {
+    if (/\/Subtype\s*\/Image/.test(dict)) continue;
     if (/\/Filter/.test(dict) && !/FlateDecode/.test(dict)) continue;
     const predictor = dict.match(/\/Predictor\s+(\d+)/);
     if (predictor && Number(predictor[1]) > 1) continue;
@@ -254,7 +346,7 @@ export async function extractPdfText(bytes) {
 
   const joined = chunks.join("\n").trim();
   if (!joined) {
-    throw new Error("No text layer in this PDF. Phase 2 does not OCR a scan and does not fill missing amounts with zero.");
+    throw new Error("No text layer in this PDF. Missing amounts were not filled with zero.");
   }
   return joined;
 }

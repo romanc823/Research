@@ -16,21 +16,33 @@ A person owns advice and sign-off. The app does not file, does not write a memo,
 
 ### Drop
 
-The left rail is a fixture picker. The drop zone accepts three anonymized inputs, and nothing is uploaded:
+The left rail is a fixture picker. The drop zone accepts anonymized inputs only, and nothing is uploaded:
 
 - Fixture JSON (`anon: true`, a `fields` object). This path is unchanged.
 - A text-layer PDF.
 - A JPEG or PNG drawn in the desk’s label font.
+- A scan (image-only PDF) or a photo (JPEG/PNG) of those same `LABEL: VALUE` lines.
 
-A file with an SSN or EIN pattern is refused. A scan with no text layer, and a photograph that is not the label font, are refused. The desk does not guess fields from either one.
+A file with an SSN or EIN pattern is refused. OCR does not guess a field the label parser would refuse, and it does not fill a blank with zero.
 
-The three buttons under the drop zone load synthetic packets from `samples/ingest/`. Those files are not fixture JSON and they are not client documents.
+The buttons under the drop zone load synthetic packets from `samples/ingest/`. Those files are not fixture JSON and they are not client documents.
 
 ### Ingest
 
 `js/intake.js` still parses fixture JSON only.
 
-`js/ingest.js` reads a PDF text layer (uncompressed or FlateDecode) or a label-font raster, then `js/ingest-fields.js` keeps a line only when the label is explicit and the value clears the confidence floor (0.8). Explicit labeled numbers are 0.96. Anything hedged, partial, or unrecognized is omitted and listed under Provenance.
+`js/ingest.js` reads a PDF text layer (uncompressed or FlateDecode) or a label-font raster first. When a PDF has no text layer, or a JPEG/PNG is not the label font, OCR runs on the page image. `js/ingest-fields.js` keeps a line only when the label is explicit and the value clears the confidence floor (0.8). Explicit labeled numbers from a text layer or the label font are 0.96. An OCR line keeps the engine’s own confidence. Anything hedged, partial, unrecognized, or under the floor is omitted and listed under Provenance.
+
+OCR runs in the browser from `vendor/ocr/` (Tesseract.js 5.1.1 and the English LSTM model). There is no server. A text-layer PDF is not OCR’d, even if the file also contains an image. A labeled JPEG or PNG is not OCR’d when the label font reads at least one line.
+
+OCR still refuses:
+
+- A PDF whose only page images are JBIG2, CCITT, or JPEG2000. Export a JPEG or PNG, or a PDF whose scan is JPEG (DCTDecode) or an 8-bit FlateDecode gray or RGB image.
+- A page with no line at or above 0.8, or no `ANON: TRUE` and `FILER-###` above that floor.
+- An SSN or EIN pattern anywhere in the OCR text. The whole packet is refused.
+- Cost segregation, Augusta, and hire-kids trigger lines under the watch floor (0.9). Those fields are omitted so types 13, 14, and 15 stay silent. Other lines between 0.8 and 0.9 can still be kept.
+
+Rebuilding the synthetic rasters, the image-only scan, and the photo is `npm run ingest-samples` after `npm install`.
 
 Fail-closed rules:
 
@@ -43,7 +55,7 @@ Fail-closed rules:
 
 The field bag is a subset of `js/extract.js` `FIELD_KEYS`. Extract, score, and present then run exactly as they do for a fixture. Present copy is still the fixed templates. No model writes it.
 
-GitHub Pages is a static host. Ingest runs in the browser. There is no server OCR and no Tesseract build. A digital PDF with a text layer is the path for a software print. A phone photo is left unread. Rebuilding the synthetic rasters is `npm run ingest-samples`.
+GitHub Pages is a static host. Ingest, including OCR, runs in the browser. The first scan on a page loads `vendor/ocr/` from this site. A digital PDF with a text layer still uses that text. A phone photo of the anonymized label lines can be read when OCR confidence clears the floor.
 
 ### Extract
 
@@ -126,12 +138,11 @@ Cost-segregation window: `tax_year - pis_or_remodel_year` is 0, 1, or 2. That is
 
 Not in this pass:
 
-- OCR of a phone photo or an image-only scan
-- Tax-software exports other than a text-layer PDF
+- Tax-software exports other than a text-layer PDF or a scan of the anonymized label lines
 - E-file or any filing integration
 - Pricing, proposals, or engagement letters
 - Model-written present copy
 - Changing a floor's band (for example, making cash-balance High once actuarial documents exist)
 - Replacing `STUB_FLOORS` with firm-locked dollars
 
-Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`. The same command also reads the synthetic PDF, JPEG, and PNG and checks that blanks did not become zeros.
+Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`. The same command also reads the synthetic PDF, JPEG, and PNG, OCRs the scan and the photo, and checks that blanks did not become zeros. `npm install` once so the checker can load tesseract.js. The Pages site uses the copies in `vendor/ocr/` and does not need that install.
