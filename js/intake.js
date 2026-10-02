@@ -1,6 +1,6 @@
 /**
- * Ingest stub. Phase A accepts an anonymized fixture object only.
- * PDFs, tax-software exports, and anything with an SSN or EIN are refused.
+ * JSON fixture gate. Document ingest (PDF, JPEG, PNG) lives in js/ingest.js.
+ * This function still refuses non-JSON, a missing anon flag, and any SSN or EIN.
  */
 
 const SSN = /\b\d{3}-\d{2}-\d{4}\b/;

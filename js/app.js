@@ -1,4 +1,5 @@
 import { evaluateFixture, matchExpectation } from "./evaluate.js";
+import { ingestDocument } from "./ingest.js";
 import { parseFixtureText } from "./intake.js";
 
 const PASS_HINT = {
@@ -11,7 +12,7 @@ const GROUP_LABEL = {
   high: "High hits",
   silent: "Silent twins",
   medium: "Medium tray",
-  dropped: "Dropped JSON",
+  dropped: "Dropped packets",
 };
 
 const state = {
@@ -69,7 +70,8 @@ function renderRail() {
     if (!items.length) return "";
     const buttons = items.map((item) => {
       const active = item.id === state.selectedId ? " is-active" : "";
-      const check = state.checks.get(item.id);
+      const packet = state.packets.get(item.id);
+      const check = packet?.fixture?.expected ? state.checks.get(item.id) : null;
       const mark = check ? (check.ok ? "ok" : "bad") : "pending";
       return `<button type="button" class="fixture${active}" data-fixture="${esc(item.id)}">
         <span class="mark mark-${mark}" aria-hidden="true"></span>
@@ -86,15 +88,53 @@ function renderRail() {
     <label class="picker-label" for="fixture-select">Fixture</label>
     <select id="fixture-select">${options}</select>
     <div class="drop" id="drop-zone">
-      <p><strong>Drop a fixture JSON</strong></p>
-      <p>Anonymized schema only. PDFs and live returns are ignored.</p>
+      <p><strong>Drop a packet</strong></p>
+      <p>Fixture JSON, a text-layer PDF, or a labeled JPEG/PNG. SSN/EIN patterns are refused. Blank amounts stay blank.</p>
       <label class="file-btn">
-        Choose JSON
-        <input id="file-input" type="file" accept="application/json,.json" />
+        Choose file
+        <input id="file-input" type="file" accept=".json,.pdf,.png,.jpg,.jpeg,application/json,application/pdf,image/png,image/jpeg" />
       </label>
+      <div class="sample-row">
+        <button type="button" data-sample="samples/ingest/synthetic-augusta.pdf">Sample PDF</button>
+        <button type="button" data-sample="samples/ingest/synthetic-rep-hours.jpg">Sample JPEG</button>
+        <button type="button" data-sample="samples/ingest/synthetic-silent-misses.png">Sample PNG</button>
+      </div>
       <p id="drop-error" class="drop-error" hidden></p>
     </div>
     <div class="fixture-list">${lists}</div>
+  `;
+}
+
+function ingestValue(value) {
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
+  if (value && typeof value === "object") return JSON.stringify(value);
+  return showValue(value);
+}
+
+function renderIngest(fixture) {
+  const ingest = fixture.ingest;
+  if (!ingest) return "";
+  const kind = {
+    pdf: "Text-layer PDF",
+    jpeg: "Labeled JPEG",
+    png: "Labeled PNG",
+    text: "Labeled text",
+  }[ingest.sourceKind] || "Ingest";
+  const kept = (ingest.accepted || []).map((row) => `
+    <li><span>${esc(row.evidence)}</span><span>${esc(ingestValue(row.value))} · ${esc(row.confidence)}</span></li>
+  `).join("");
+  const omitted = (ingest.dropped || []).map((row) => `
+    <li><span>${esc(row.evidence || "—")}</span><span>${esc(row.reason)}</span></li>
+  `).join("");
+  return `
+    <p class="ingest-summary">${esc(kind)} · confidence floor ${esc(ingest.confidenceFloor)} · ${Object.keys(fixture.fields || {}).length} fields kept · ${(ingest.dropped || []).length} lines omitted</p>
+    <details class="silent ingest">
+      <summary>Provenance — kept lines and omitted lines</summary>
+      <h4>Kept</h4>
+      <ul>${kept || "<li><span>No labeled field cleared the floor.</span><span></span></li>"}</ul>
+      <h4>Omitted</h4>
+      <ul>${omitted || "<li><span>Nothing omitted.</span><span></span></li>"}</ul>
+    </details>
   `;
 }
 
@@ -174,6 +214,7 @@ function renderStage() {
       <h2>${esc(fixture.label || fixture.id)}</h2>
       <p class="forms">${esc(forms || "No form list")}</p>
       <p class="scenario">${esc(fixture.scenario || "")}</p>
+      ${renderIngest(fixture)}
       <p class="packet-check ${check && !check.ok ? "is-bad" : ""}">${esc(checkLine)}</p>
     </header>
     <div class="tabs" role="tablist">
@@ -200,7 +241,12 @@ function renderStage() {
 }
 
 function renderStatus() {
-  const checked = [...state.checks.values()];
+  const checked = [];
+  for (const [id, packet] of state.packets) {
+    if (!packet.fixture?.expected) continue;
+    const check = state.checks.get(id);
+    if (check) checked.push(check);
+  }
   if (!checked.length) {
     checkSlot.textContent = "Loading fixtures…";
     return;
@@ -254,6 +300,19 @@ function showDropError(message) {
   node.textContent = message;
 }
 
+async function takeFile(file) {
+  const lower = (file.name || "").toLowerCase();
+  const json = lower.endsWith(".json") || file.type === "application/json";
+  const fixture = json
+    ? parseFixtureText(await file.text())
+    : await ingestDocument({
+      name: file.name,
+      type: file.type,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
+  ingestFixture(fixture);
+}
+
 async function boot() {
   try {
     const [manifest, registry] = await Promise.all([
@@ -286,7 +345,20 @@ async function boot() {
   }
 }
 
-rail.addEventListener("click", (event) => {
+rail.addEventListener("click", async (event) => {
+  const sample = event.target.closest("[data-sample]");
+  if (sample) {
+    try {
+      const response = await fetch(sample.dataset.sample);
+      if (!response.ok) throw new Error(`Could not load ${sample.dataset.sample}`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const name = sample.dataset.sample.split("/").pop();
+      ingestFixture(await ingestDocument({ name, type: "", bytes }));
+    } catch (error) {
+      showDropError(error.message);
+    }
+    return;
+  }
   const button = event.target.closest("[data-fixture]");
   if (!button) return;
   selectFixture(button.dataset.fixture);
@@ -315,8 +387,7 @@ rail.addEventListener("drop", async (event) => {
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
   try {
-    const fixture = parseFixtureText(await file.text());
-    ingestFixture(fixture);
+    await takeFile(file);
   } catch (error) {
     showDropError(error.message);
   }
@@ -327,8 +398,7 @@ rail.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
-    const fixture = parseFixtureText(await file.text());
-    ingestFixture(fixture);
+    await takeFile(file);
   } catch (error) {
     showDropError(error.message);
   }

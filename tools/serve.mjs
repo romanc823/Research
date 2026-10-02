@@ -22,6 +22,10 @@ const types = {
   ".json": "application/json; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
 };
 
 function preferredPort(raw = process.env.PORT) {

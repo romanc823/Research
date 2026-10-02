@@ -1,6 +1,6 @@
 # Pipeline
 
-Phase A is one path:
+One path. Phase 2 replaces ingest only. Score and present stay frozen:
 
 ```
 Drop → Ingest → Extract → Score → Present
@@ -16,11 +16,34 @@ A person owns advice and sign-off. The app does not file, does not write a memo,
 
 ### Drop
 
-The left rail is a fixture picker. The drop zone accepts one JSON fixture that uses the anonymized schema (`anon: true`, a `fields` object, no SSN or EIN). A PDF, a tax-software export, or a file with a real identifier is refused. Nothing is uploaded.
+The left rail is a fixture picker. The drop zone accepts three anonymized inputs, and nothing is uploaded:
+
+- Fixture JSON (`anon: true`, a `fields` object). This path is unchanged.
+- A text-layer PDF.
+- A JPEG or PNG drawn in the desk’s label font.
+
+A file with an SSN or EIN pattern is refused. A scan with no text layer, and a photograph that is not the label font, are refused. The desk does not guess fields from either one.
+
+The three buttons under the drop zone load synthetic packets from `samples/ingest/`. Those files are not fixture JSON and they are not client documents.
 
 ### Ingest
 
-Ingest is an identity step. The JSON object is the packet. There is no OCR, no spreadsheet mapping, and no e-file ingest. `js/intake.js` is the whole stage.
+`js/intake.js` still parses fixture JSON only.
+
+`js/ingest.js` reads a PDF text layer (uncompressed or FlateDecode) or a label-font raster, then `js/ingest-fields.js` keeps a line only when the label is explicit and the value clears the confidence floor (0.8). Explicit labeled numbers are 0.96. Anything hedged, partial, or unrecognized is omitted and listed under Provenance.
+
+Fail-closed rules:
+
+- A blank `retirement_deduction`, `hours_log_rep`, age, or ownership source is omitted. It is not stored as zero, and it is not stored as “has 1098.”
+- An explicit `0` is kept. That is a stated zero, not a blank.
+- `ho_context`, hire-kids relationship, and QSBS notes require the matching label and an explicit yes/no or relationship. Prose does not set them.
+- NUA, QSBS, and Augusta are atomic. `NUA: YES` or `QSBS: YES` fills neither half. Form 8829 is not an ownership document. Cost-segregation prose does not fill basis or year.
+- QBI is kept only when income, tentative deduction, and deduction taken are all explicit. Section 179 is kept only when both amounts are explicit. Officer W-2 and distributions are kept only as a pair, so a missing wage is not scored as zero.
+- Below the floor, the line is dropped. Silent is preferred over a tray card.
+
+The field bag is a subset of `js/extract.js` `FIELD_KEYS`. Extract, score, and present then run exactly as they do for a fixture. Present copy is still the fixed templates. No model writes it.
+
+GitHub Pages is a static host. Ingest runs in the browser. There is no server OCR and no Tesseract build. A digital PDF with a text layer is the path for a software print. A phone photo is left unread. Rebuilding the synthetic rasters is `npm run ingest-samples`.
 
 ### Extract
 
@@ -75,7 +98,7 @@ These kills are intentional, not missing features:
 
 ## Stub calibrations
 
-`STUB_FLOORS` in `js/score.js` gives numbers to words the taxonomy left open. Locked figures are not in that set of guesses; they are coded to the taxonomy ($5,000, 750 hours, exact $0, any building basis, last three tax years).
+`STUB_FLOORS` in `js/score.js` gives numbers to words the taxonomy left open. Locked figures are not in that set of guesses; they are coded to the taxonomy ($5,000, 750 hours, exact $0, any building basis, last three tax years). These dollar calibrations stay research values. The firm has to lock them before any live client scoring. This ingest change does not retune them.
 
 | Constant | Stub value | Taxonomy words it stands in for |
 | --- | --- | --- |
@@ -101,12 +124,14 @@ Cost-segregation window: `tax_year - pis_or_remodel_year` is 0, 1, or 2. That is
 
 ## What is later
 
-Phase 2, not this scaffold:
+Not in this pass:
 
-- Reading a real return (PDF, scan, or tax-software export)
+- OCR of a phone photo or an image-only scan
+- Tax-software exports other than a text-layer PDF
 - E-file or any filing integration
 - Pricing, proposals, or engagement letters
 - Model-written present copy
 - Changing a floor's band (for example, making cash-balance High once actuarial documents exist)
+- Replacing `STUB_FLOORS` with firm-locked dollars
 
-Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`.
+Until then, add a fixture, keep it anonymized, and let `npm run check` compare the bands to `expected`. The same command also reads the synthetic PDF, JPEG, and PNG and checks that blanks did not become zeros.

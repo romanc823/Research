@@ -19,6 +19,14 @@ Pages publishes the `main` branch from the repository root (`/`). `index.html`, 
 
 The left rail should list the anonymized fixtures. After a push to `main`, Pages rebuilds before the new files show up. If the rail still says "Loading fixtures…", wait a minute and reload.
 
+### Drop a PDF or image
+
+The drop zone on that page also accepts a text-layer PDF or a labeled JPEG/PNG. The file stays in the browser. Pages does not run OCR.
+
+Three sample buttons load synthetic packets (no client data): a PDF that should show Augusta as High and a vehicle line on the tray, a JPEG that should show REP hours as High and Form 8283 on the tray, and a PNG that should stay silent. Blank retirement, blank hours, Form 8829 used as ownership, and education without Form 1098-T stay off the cards.
+
+A photograph or a scan with no text layer is refused. Missing amounts are not filled with zero. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
+
 Do not open `index.html` from Finder or Explorer. A `file://` tab blocks ES modules and `fetch`.
 
 GitHub Free cannot publish Pages from a private repository, so this repository is public. The pack is still anonymized fixtures only: no live client data, no e-file, no pricing.
