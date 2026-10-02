@@ -85,6 +85,25 @@ export function buildTextPdf(lines, options = {}) {
   return concat(parts);
 }
 
+function dictEndingAt(fileText, streamAt) {
+  let end = streamAt;
+  while (end > 0 && /\s/.test(fileText[end - 1])) end -= 1;
+  if (end < 2 || fileText[end - 2] !== ">" || fileText[end - 1] !== ">") return "";
+  let depth = 0;
+  for (let i = end - 2; i >= 0; i -= 1) {
+    const pair = fileText.slice(i, i + 2);
+    if (pair === ">>") {
+      depth += 1;
+      continue;
+    }
+    if (pair === "<<") {
+      depth -= 1;
+      if (depth === 0) return fileText.slice(i, end);
+    }
+  }
+  return "";
+}
+
 function resolveLength(dict, fileText) {
   const ref = dict.match(/\/Length\s+(\d+)\s+0\s+R/);
   if (ref) {
@@ -232,8 +251,7 @@ export function readPdfStreams(bytes) {
     let start = at + 6;
     if (fileText[start] === "\r") start += 1;
     if (fileText[start] === "\n") start += 1;
-    const dictAt = fileText.lastIndexOf("<<", at);
-    const dict = dictAt >= 0 ? fileText.slice(dictAt, at) : "";
+    const dict = dictEndingAt(fileText, at);
     if (!dict || dict.length > 8000) {
       search = at + 6;
       continue;
@@ -283,7 +301,18 @@ export function buildUnsupportedImagePdf(filterName) {
   });
 }
 
-function buildSingleImagePdf({ content, dict, stream }) {
+export function buildCcittPdf(encoded, width, height) {
+  const stream = encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+  const content = bytesFromLatin1(`q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`);
+  return buildSingleImagePdf({
+    content,
+    dict: `/Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 1 /Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns ${width} /Rows ${height} >> /Length ${stream.length}`,
+    stream,
+    mediaBox: `0 0 ${width} ${height}`,
+  });
+}
+
+function buildSingleImagePdf({ content, dict, stream, mediaBox = "0 0 612 792" }) {
   const parts = [];
   const offsets = [0];
   function here() {
@@ -300,7 +329,7 @@ function buildSingleImagePdf({ content, dict, stream }) {
   push("%PDF-1.4\n");
   obj(1, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
   obj(2, "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
-  obj(3, "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>\nendobj\n");
+  obj(3, `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>\nendobj\n`);
   offsets[4] = here();
   push(`4 0 obj\n<< /Length ${content.length} >>\nstream\n`);
   push(content);

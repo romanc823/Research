@@ -8,6 +8,7 @@ import { decodeGrayJpeg } from "./jpeg-gray.js";
 import { decodeGrayPng } from "./png-gray.js";
 import { extractPdfText } from "./pdf-text.js";
 import { extractPdfPageImages } from "./pdf-images.js";
+import { rasterizePdfPages } from "./pdf-raster.js";
 import { readLabelRaster } from "./raster-label.js";
 import { recognizeImages } from "./ocr.js";
 import { parseDocumentText } from "./ingest-fields.js";
@@ -83,6 +84,27 @@ async function ocrBytes(images) {
   }
 }
 
+const SCAN_FILTER = /JBIG2|CCITT|JPX/;
+
+function pageNeedsRaster(extracted) {
+  if (!extracted.images.length) return true;
+  return extracted.unsupported.some((name) => SCAN_FILTER.test(name));
+}
+
+async function ocrRasterizedPdf(data, fileName) {
+  let pngs;
+  try {
+    pngs = await rasterizePdfPages(data);
+  } catch (error) {
+    if (typeof error?.message === "string" && /vendor\/pdfjs|No fields were guessed/.test(error.message)) throw error;
+    throw new Error("No text layer in this PDF. The page image could not be read. Missing amounts were not filled with zero.");
+  }
+  if (!pngs.length) {
+    throw new Error("No text layer in this PDF. The page image could not be read. Missing amounts were not filled with zero.");
+  }
+  return packetFromOcr(await ocrBytes(pngs), "pdf-ocr", fileName);
+}
+
 export async function ingestDocument({ name = "", type = "", bytes }) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const kind = sniff(name, type, data);
@@ -96,11 +118,15 @@ export async function ingestDocument({ name = "", type = "", bytes }) {
     } catch (error) {
       if (!isNoTextLayer(error)) throw error;
       const extracted = await extractPdfPageImages(data);
+      if (pageNeedsRaster(extracted)) {
+        try {
+          return await ocrRasterizedPdf(data, name);
+        } catch (rasterError) {
+          if (!extracted.images.length) throw rasterError;
+        }
+      }
       if (!extracted.images.length) {
-        const filters = extracted.unsupported.length
-          ? ` Page images use ${extracted.unsupported.join(", ")}, which this desk does not decode. Export a JPEG or PNG, or a PDF whose scan is a JPEG.`
-          : " It has no JPEG or FlateDecode page image to OCR.";
-        throw new Error(`No text layer in this PDF.${filters} Missing amounts were not filled with zero.`);
+        throw new Error("No text layer in this PDF. The page image could not be read. Missing amounts were not filled with zero.");
       }
       return packetFromOcr(await ocrBytes(extracted.images.map((image) => image.bytes)), "pdf-ocr", name);
     }

@@ -60,7 +60,7 @@ The left rail lists 20 synthetic packets. Pick one. The main pane runs that pack
 
 The header counts how many fixtures match the `expected` block in their JSON. That count is the same check as `npm run check`.
 
-The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. It refuses an SSN or EIN pattern, a page under the confidence floor, and scan encodings it cannot decode (JBIG2, CCITT, JPEG2000). Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
+The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. JPEG and FlateDecode scans go straight to OCR. Fax (CCITT), JBIG2, and JPEG2000 scans are rasterized in the browser first. It refuses an SSN or EIN pattern, a page under the confidence floor, and a page image that cannot be painted. Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
 
 ## Layout
 
@@ -74,8 +74,10 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPE
 | `js/ingest-fields.js` | Fail-closed field parser, including the OCR floors |
 | `js/ocr.js` | Tesseract.js in the browser and in `npm run check` |
 | `js/pdf-images.js` | JPEG and FlateDecode page images |
+| `js/pdf-raster.js` | PDF.js page paint for CCITT, JBIG2, and JPEG2000 |
 | `vendor/ocr/` | Tesseract engine and English model served by Pages |
-| `samples/ingest/` | Synthetic PDF, JPEG, PNG, scan, and photo. Not fixture JSON. |
+| `vendor/pdfjs/` | PDF.js, worker, and JBIG2 / JPEG2000 wasm served by Pages |
+| `samples/ingest/` | Synthetic PDF, JPEG, PNG, scan, photo, and fax. Not fixture JSON. |
 | `js/extract.js` | Fields only |
 | `js/score.js` | High / Medium / silent |
 | `js/present.js` | Fixed present copy and talk bans |
@@ -88,7 +90,7 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPE
 | `.nojekyll` | Publishes the repo as static files. Pages does not run Jekyll. |
 | `tools/self-check.mjs` | Fixture expectations and floor boundaries |
 | `tools/build-fixtures.mjs` | Regenerates the JSON pack |
-| `tools/write-ingest-samples.mjs` | Regenerates the synthetic PDF, JPEG, PNG, scan, and photo |
+| `tools/write-ingest-samples.mjs` | Regenerates the synthetic PDF, JPEG, PNG, scan, photo, and fax |
 | `tools/render-photo.mjs` | Draws the scan and photo from DejaVu Sans Mono |
 | `tools/serve.mjs` | Static server. Walks the next free ports and prints the URL. |
 
@@ -110,6 +112,7 @@ Shipped as Phase 2 ingest, still on the frozen score and present path:
 
 - Text-layer PDF in, and a label-font JPEG or PNG in
 - OCR of an image-only PDF or a photo of the same anonymized labels, in the browser
+- Page rasterizing for CCITT, JBIG2, and JPEG2000 scans, then the same OCR path
 - Confidence floor, a higher watch floor for types 13, 14, and 15, provenance, and blanks left blank
 - Synthetic samples only. No live client file in `samples/` or `fixtures/`
 
@@ -151,6 +154,6 @@ npm install
 npm run check
 ```
 
-`npm install` loads tesseract.js for the checker. The Pages site does not use `node_modules`; it loads `vendor/ocr/`.
+`npm install` loads tesseract.js, pdfjs-dist, and the canvas package for the checker. Node 20 is enough: the rasterizer installs `Promise.withResolvers` before PDF.js opens a document. The Pages site does not use `node_modules`; it loads `vendor/ocr/` and `vendor/pdfjs/`.
 
-The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan and photo samples invent a zero or raise types 13, 14, or 15 from a blank.
+The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan, fax, and photo samples invent a zero or raise types 13, 14, or 15 from a blank.

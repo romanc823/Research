@@ -9,7 +9,10 @@
     "ingest-samples": "node tools/write-ingest-samples.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "1.0.10",
+    "pdfjs-dist": "6.3.289",
     "pureimage": "0.4.20",
-    "tesseract.js": "5.1.1"
+    "tesseract.js": "5.1.1",
+    "ts-ccitt-g4-encoder": "1.0.0"
   }
 }

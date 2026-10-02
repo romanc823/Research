@@ -15,13 +15,16 @@ import { ingestDocument, parseDocumentText, CONFIDENCE_FLOOR, OCR_WATCH_FLOOR } 
 import { buildFlateGrayPdf, buildImagePdf, buildTextPdf, buildUnsupportedImagePdf, extractPdfText } from "../js/pdf-text.js";
 import { extractPdfPageImages } from "../js/pdf-images.js";
 import { decodeGrayPng } from "../js/png-gray.js";
-import { AUGUSTA_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
+import { AUGUSTA_PDF_LINES, FAX_PDF_LINES, PHOTO_SEP_LINES, REP_JPEG_LINES, SCAN_PDF_LINES, SILENT_PNG_LINES } from "../js/ingest-samples.js";
 import { renderLabelRaster, readLabelRaster } from "../js/raster-label.js";
 import { encodeGrayJpeg, decodeGrayJpeg } from "../js/jpeg-gray.js";
 import { encodeGrayPng } from "../js/png-gray.js";
 import { LOW_OCR_REASON, WATCH_OCR_REASON } from "../js/ingest-fields.js";
 import { shutdownOcr, TESSERACT_VERSION } from "../js/ocr.js";
+import { PDFJS_VERSION } from "../js/pdf-raster.js";
+import { installPromiseWithResolvers } from "../js/promise-with-resolvers.js";
 import { renderPacketJpeg } from "./render-photo.mjs";
+import { buildFaxPdf } from "./ccitt-sample.mjs";
 import { deflateSync } from "node:zlib";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -633,13 +636,78 @@ async function checkIngest() {
     fail("FlateDecode scan stored a blank amount");
   }
 
+  if (pkg.dependencies["pdfjs-dist"] !== PDFJS_VERSION) {
+    fail(`pdfjs-dist pin ${pkg.dependencies["pdfjs-dist"]} does not match pdf-raster ${PDFJS_VERSION}`);
+  }
+  const withResolvers = Object.getOwnPropertyDescriptor(Promise, "withResolvers");
+  if (withResolvers?.configurable) {
+    const saved = Promise.withResolvers;
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value: undefined });
+    installPromiseWithResolvers();
+    if (typeof Promise.withResolvers !== "function") fail("Promise.withResolvers polyfill did not install");
+    const settled = Promise.withResolvers();
+    settled.resolve("ok");
+    if (await settled.promise !== "ok") fail("polyfilled Promise.withResolvers did not resolve");
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value: saved });
+  } else if (typeof Promise.withResolvers !== "function") {
+    installPromiseWithResolvers();
+    if (typeof Promise.withResolvers !== "function") fail("Promise.withResolvers polyfill did not install");
+  }
+  const pdfjsPairs = [
+    ["vendor/pdfjs/pdf.min.js", "node_modules/pdfjs-dist/legacy/build/pdf.min.mjs"],
+    ["vendor/pdfjs/pdf.worker.min.js", "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs"],
+    ["vendor/pdfjs/wasm/jbig2.wasm", "node_modules/pdfjs-dist/wasm/jbig2.wasm"],
+    ["vendor/pdfjs/wasm/openjpeg.wasm", "node_modules/pdfjs-dist/wasm/openjpeg.wasm"],
+    ["vendor/pdfjs/wasm/qcms_bg.wasm", "node_modules/pdfjs-dist/wasm/qcms_bg.wasm"],
+  ];
+  for (const [vendored, packaged] of pdfjsPairs) {
+    const left = fs.readFileSync(path.join(root, vendored));
+    const right = fs.readFileSync(path.join(root, packaged));
+    if (left.length !== right.length || !left.equals(right)) fail(`${vendored} drifted from pdfjs-dist`);
+  }
+
+  const faxPdf = await buildFaxPdf(FAX_PDF_LINES);
+  const faxPath = path.join(root, "samples/ingest/synthetic-fax-augusta.pdf");
+  const faxBytes = new Uint8Array(fs.readFileSync(faxPath));
+  if (!sameBytes(faxBytes, faxPdf)) fail("synthetic fax PDF drifted from its Group 4 image");
+  const faxImages = await extractPdfPageImages(faxBytes);
+  if (faxImages.images.length) fail("fax PDF was read as JPEG or FlateDecode");
+  if (!faxImages.unsupported.includes("CCITTFaxDecode")) fail(`fax filter was ${faxImages.unsupported.join(", ")}`);
+  try {
+    await extractPdfText(faxBytes);
+    fail("fax PDF exposed a text layer");
+  } catch (error) {
+    if (!String(error.message).startsWith("No text layer in this PDF.")) fail("fax PDF did not fail closed before raster");
+  }
+  const faxPacket = await ingestDocument({ name: "synthetic-fax-augusta.pdf", bytes: faxBytes });
+  if (faxPacket.ingest.sourceKind !== "pdf-ocr") fail(`fax source was ${faxPacket.ingest.sourceKind}`);
+  const faxBands = packetBands(faxPacket);
+  if (!idsEqual(faxBands.high, ["14"]) || !idsEqual(faxBands.medium, ["8b"])) {
+    fail(`fax PDF bands High ${faxBands.high} Medium ${faxBands.medium}`);
+  }
+  const faxAugusta = faxBands.evaluation.cards.find((card) => card.typeId === "14");
+  if (!faxAugusta || faxAugusta.copy !== FIXED_COPY[14]) fail("fax Augusta copy drifted");
+  if (faxPacket.fields.se_income !== 88000) fail(`fax self-employment income was ${faxPacket.fields.se_income}`);
+  if (faxPacket.fields.home_ownership_source !== "1098") fail("fax did not read the 1098 ownership source");
+  if (!faxPacket.forms_in_packet?.includes("FORM 1098")) fail(`fax forms were ${faxPacket.forms_in_packet}`);
+  if ("retirement_deduction" in faxPacket.fields) fail("fax blank retirement was emitted");
+  if (extractFields(faxPacket).retirement_deduction !== null) fail("fax blank retirement became a number");
+  if (extractFields(faxPacket).hours_log_rep !== null) fail("fax blank hours became a number");
+  const faxFields = extractFields(faxPacket);
+  const faxScored = scoreAll(faxFields);
+  if (bandOf(faxScored, "13") !== "silent") fail("fax raised cost segregation");
+  if (bandOf(faxScored, "15") !== "silent") fail("fax raised hire-kids");
+  if (bandOf(faxScored, "12") !== "silent") fail("fax education without 1098-T scored");
+  if (faxPacket.ingest.accepted.some((row) => row.confidence < CONFIDENCE_FLOOR)) fail("fax kept a line below the floor");
+
   try {
     await ingestDocument({ name: "jbig2.pdf", bytes: buildUnsupportedImagePdf("JBIG2Decode") });
-    fail("JBIG2 scan produced a packet");
+    fail("unreadable scan produced a packet");
   } catch (error) {
-    if (!/JBIG2Decode/.test(error.message) || !/not filled with zero/.test(error.message)) {
-      fail(`JBIG2 refusal was ${error.message}`);
+    if (!/could not be read/.test(error.message) || !/not filled with zero/.test(error.message)) {
+      fail(`unreadable scan refusal was ${error.message}`);
     }
+    if (/does not decode/.test(error.message)) fail("refusal still claims a codec is unsupported");
   }
 }
 

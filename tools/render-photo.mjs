@@ -19,13 +19,13 @@ function loadFont() {
   return fontReady;
 }
 
-export async function renderPacketJpeg(lines) {
+export async function renderPacketJpeg(lines, options = {}) {
   await loadFont();
-  const fontSize = 42;
-  const lineH = 64;
-  const padX = 48;
-  const padY = 40;
-  const width = 1280;
+  const fontSize = options.fontSize ?? 42;
+  const lineH = options.lineH ?? 64;
+  const padX = options.padX ?? 48;
+  const padY = options.padY ?? 40;
+  const width = options.width ?? 1280;
   const height = Math.ceil((padY * 2 + lines.length * lineH) / 8) * 8;
   const img = PImage.make(width, height);
   const ctx = img.getContext("2d");
@@ -39,10 +39,13 @@ export async function renderPacketJpeg(lines) {
 
   const gray = new Uint8Array(width * height);
   const data = img.data;
+  const noise = options.noise !== false;
   for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
     let value = Math.round((0.299 * data[i]) + (0.587 * data[i + 1]) + (0.114 * data[i + 2]));
-    const noise = ((p * 13) ^ (p >> 5)) & 7;
-    value = Math.max(0, Math.min(255, value + (noise - 3)));
+    if (noise) {
+      const speck = ((p * 13) ^ (p >> 5)) & 7;
+      value = Math.max(0, Math.min(255, value + (speck - 3)));
+    }
     gray[p] = value;
   }
   return {

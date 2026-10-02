@@ -485,7 +485,7 @@ export function parseDocumentText(text, meta) {
     tax_year: taxYear,
     forms_in_packet: forms,
     scenario: meta.ocr
-      ? "Phase 2.5 OCR. Lines under the confidence floor were omitted. Blank amounts stayed blank."
+      ? "Scan OCR. Lines under the confidence floor were omitted. Blank amounts stayed blank."
       : "Phase 2 ingest. Blank amounts stayed omitted. Lines under the confidence floor were not scored.",
     fields,
     ingest,

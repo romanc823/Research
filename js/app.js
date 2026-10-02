@@ -89,7 +89,7 @@ function renderRail() {
     <select id="fixture-select">${options}</select>
     <div class="drop" id="drop-zone">
       <p><strong>Drop a packet</strong></p>
-      <p>Fixture JSON, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. Low-confidence lines are omitted. Blank amounts stay blank.</p>
+      <p>Fixture JSON, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. Fax, JBIG2, and JPEG2000 scans are rasterized in the browser first. Low-confidence lines are omitted. Blank amounts stay blank.</p>
       <label class="file-btn">
         Choose file
         <input id="file-input" type="file" accept=".json,.pdf,.png,.jpg,.jpeg,application/json,application/pdf,image/png,image/jpeg" />
@@ -100,6 +100,7 @@ function renderRail() {
         <button type="button" data-sample="samples/ingest/synthetic-silent-misses.png">Sample PNG</button>
         <button type="button" data-sample="samples/ingest/synthetic-scan-augusta.pdf">Sample scan</button>
         <button type="button" data-sample="samples/ingest/synthetic-photo-sep.jpg">Sample photo</button>
+        <button type="button" data-sample="samples/ingest/synthetic-fax-augusta.pdf">Sample fax</button>
       </div>
       <p id="drop-note" class="drop-note" hidden></p>
     </div>
