@@ -61,9 +61,47 @@ function concat(parts) {
   return out;
 }
 
+function adler32(data) {
+  let s1 = 1;
+  let s2 = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    s1 += data[i];
+    s2 += s1;
+    if ((i & 0xfff) === 0xfff) {
+      s1 %= 65521;
+      s2 %= 65521;
+    }
+  }
+  s1 %= 65521;
+  s2 %= 65521;
+  return ((s2 << 16) | s1) >>> 0;
+}
+
+/** Stored zlib blocks. The bytes do not depend on Node's zlib build. */
+function zlibStore(data) {
+  const parts = [Uint8Array.from([0x78, 0x01])];
+  let offset = 0;
+  do {
+    const last = offset + 65535 >= data.length;
+    const len = Math.min(65535, data.length - offset);
+    const block = new Uint8Array(5 + len);
+    block[0] = last ? 0x01 : 0x00;
+    block[1] = len & 0xff;
+    block[2] = (len >> 8) & 0xff;
+    const nlen = (len ^ 0xffff) & 0xffff;
+    block[3] = nlen & 0xff;
+    block[4] = (nlen >> 8) & 0xff;
+    block.set(data.subarray(offset, offset + len), 5);
+    parts.push(block);
+    offset += len;
+  } while (offset < data.length);
+  const sum = adler32(data);
+  parts.push(Uint8Array.from([(sum >>> 24) & 0xff, (sum >>> 16) & 0xff, (sum >>> 8) & 0xff, sum & 0xff]));
+  return concat(parts);
+}
+
 export async function encodeGrayPng(gray, width, height) {
   if (gray.length !== width * height) throw new Error("Gray buffer does not match its size.");
-  const { deflateSync } = await import("node:zlib");
   const raw = new Uint8Array((width + 1) * height);
   for (let y = 0; y < height; y += 1) {
     const dest = y * (width + 1);
@@ -75,11 +113,10 @@ export async function encodeGrayPng(gray, width, height) {
   ihdr.set(u32(height), 4);
   ihdr[8] = 8;
   ihdr[9] = 0;
-  const idat = new Uint8Array(deflateSync(raw));
   return concat([
     Uint8Array.from(SIG),
     chunk("IHDR", ihdr),
-    chunk("IDAT", idat),
+    chunk("IDAT", zlibStore(raw)),
     chunk("IEND", new Uint8Array(0)),
   ]);
 }
