@@ -22,6 +22,7 @@ import { encodeGrayPng } from "../js/png-gray.js";
 import { LOW_OCR_REASON, WATCH_OCR_REASON } from "../js/ingest-fields.js";
 import { shutdownOcr, TESSERACT_VERSION } from "../js/ocr.js";
 import { PDFJS_VERSION } from "../js/pdf-raster.js";
+import { installPromiseWithResolvers } from "../js/promise-with-resolvers.js";
 import { renderPacketJpeg } from "./render-photo.mjs";
 import { buildFaxPdf } from "./ccitt-sample.mjs";
 import { deflateSync } from "node:zlib";
@@ -637,6 +638,20 @@ async function checkIngest() {
 
   if (pkg.dependencies["pdfjs-dist"] !== PDFJS_VERSION) {
     fail(`pdfjs-dist pin ${pkg.dependencies["pdfjs-dist"]} does not match pdf-raster ${PDFJS_VERSION}`);
+  }
+  const withResolvers = Object.getOwnPropertyDescriptor(Promise, "withResolvers");
+  if (withResolvers?.configurable) {
+    const saved = Promise.withResolvers;
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value: undefined });
+    installPromiseWithResolvers();
+    if (typeof Promise.withResolvers !== "function") fail("Promise.withResolvers polyfill did not install");
+    const settled = Promise.withResolvers();
+    settled.resolve("ok");
+    if (await settled.promise !== "ok") fail("polyfilled Promise.withResolvers did not resolve");
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value: saved });
+  } else if (typeof Promise.withResolvers !== "function") {
+    installPromiseWithResolvers();
+    if (typeof Promise.withResolvers !== "function") fail("Promise.withResolvers polyfill did not install");
   }
   const pdfjsPairs = [
     ["vendor/pdfjs/pdf.min.js", "node_modules/pdfjs-dist/legacy/build/pdf.min.mjs"],

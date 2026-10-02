@@ -7,6 +7,8 @@
  * A JPEG or FlateDecode scan never reaches this module.
  */
 
+import { installPromiseWithResolvers } from "./promise-with-resolvers.js";
+
 export const PDFJS_VERSION = "6.3.289";
 export const MAX_RASTER_PAGES = 40;
 
@@ -46,6 +48,7 @@ async function pngFromCanvas(canvas) {
 }
 
 async function loadPdfjs() {
+  installPromiseWithResolvers();
   if (isNode()) {
     const { createRequire } = await import("node:module");
     const { pathToFileURL } = await import("node:url");
@@ -66,7 +69,7 @@ async function loadPdfjs() {
     throw new Error("The page rasterizer could not load. vendor/pdfjs is missing. No fields were guessed.");
   }
   const base = new URL("../vendor/pdfjs/", import.meta.url);
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.js", base).href;
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdf.worker.js", base).href;
   return {
     pdfjs,
     wasmUrl: new URL("wasm/", base).href,
@@ -108,6 +111,7 @@ export async function rasterizePdfPages(bytes) {
       return canvas;
     } };
 
+  installPromiseWithResolvers();
   const task = pdfjs.getDocument({
     data: copyBytes(bytes),
     wasmUrl,

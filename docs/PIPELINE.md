@@ -35,7 +35,7 @@ The buttons under the drop zone load synthetic packets from `samples/ingest/`. T
 
 OCR runs in the browser from `vendor/ocr/` (Tesseract.js 5.1.1 and the English LSTM model). There is no server. A text-layer PDF is not OCR’d, even if the file also contains an image. A labeled JPEG or PNG is not OCR’d when the label font reads at least one line.
 
-A JPEG (DCTDecode) or 8-bit FlateDecode page image is decoded directly and sent to OCR. Any other page image — CCITT Group 4, JBIG2, JPEG2000, or a mix of those with a JPEG — is painted by PDF.js (`vendor/pdfjs/`, PDF.js 6.3.289) and the PNG of that page is what OCR reads. The first 40 pages are painted. A page with no ink is skipped. PDF.js is not loaded for a text-layer PDF or for a JPEG/FlateDecode scan.
+A JPEG (DCTDecode) or 8-bit FlateDecode page image is decoded directly and sent to OCR. Any other page image — CCITT Group 4, JBIG2, JPEG2000, or a mix of those with a JPEG — is painted by PDF.js (`vendor/pdfjs/`, PDF.js 6.3.289) and the PNG of that page is what OCR reads. PDF.js calls `Promise.withResolvers`. The rasterizer installs that method before `getDocument`, on the page and in the worker, so Node 20 and a browser without the method can still paint. The first 40 pages are painted. A page with no ink is skipped. PDF.js is not loaded for a text-layer PDF or for a JPEG/FlateDecode scan.
 
 OCR still refuses:
 

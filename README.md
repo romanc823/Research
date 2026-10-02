@@ -154,6 +154,6 @@ npm install
 npm run check
 ```
 
-`npm install` loads tesseract.js, pdfjs-dist, and the canvas package for the checker. The Pages site does not use `node_modules`; it loads `vendor/ocr/` and `vendor/pdfjs/`.
+`npm install` loads tesseract.js, pdfjs-dist, and the canvas package for the checker. Node 20 is enough: the rasterizer installs `Promise.withResolvers` before PDF.js opens a document. The Pages site does not use `node_modules`; it loads `vendor/ocr/` and `vendor/pdfjs/`.
 
 The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan, fax, and photo samples invent a zero or raise types 13, 14, or 15 from a blank.
