@@ -12,6 +12,8 @@ import { rasterizePdfPages } from "./pdf-raster.js";
 import { readLabelRaster } from "./raster-label.js";
 import { recognizeImages } from "./ocr.js";
 import { parseDocumentText } from "./ingest-fields.js";
+import { countPdfPages, extractEncodedPdfText } from "./pdf-unicode.js";
+import { pageCap, pageCapMessage } from "./desk-mode.js";
 
 export { CONFIDENCE_FLOOR, OCR_WATCH_FLOOR, parseDocumentText } from "./ingest-fields.js";
 
@@ -64,7 +66,7 @@ function isNoTextLayer(error) {
   return typeof error?.message === "string" && error.message.startsWith("No text layer in this PDF.");
 }
 
-function packetFromOcr(rows, sourceKind, fileName) {
+function packetFromOcr(rows, sourceKind, fileName, privateMode) {
   if (!rows.length) {
     throw new Error("OCR found no labeled lines. The page was left unread. Missing amounts were not filled with zero.");
   }
@@ -72,6 +74,7 @@ function packetFromOcr(rows, sourceKind, fileName) {
     sourceKind,
     fileName,
     ocr: true,
+    privateMode,
     confidences: rows.map((row) => row.confidence),
   });
 }
@@ -91,7 +94,7 @@ function pageNeedsRaster(extracted) {
   return extracted.unsupported.some((name) => SCAN_FILTER.test(name));
 }
 
-async function ocrRasterizedPdf(data, fileName) {
+async function ocrRasterizedPdf(data, fileName, privateMode) {
   let pngs;
   try {
     pngs = await rasterizePdfPages(data);
@@ -102,39 +105,49 @@ async function ocrRasterizedPdf(data, fileName) {
   if (!pngs.length) {
     throw new Error("No text layer in this PDF. The page image could not be read. Missing amounts were not filled with zero.");
   }
-  return packetFromOcr(await ocrBytes(pngs), "pdf-ocr", fileName);
+  return packetFromOcr(await ocrBytes(pngs), "pdf-ocr", fileName, privateMode);
 }
 
-export async function ingestDocument({ name = "", type = "", bytes }) {
+export async function ingestDocument({ name = "", type = "", bytes, privateMode = false }) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const kind = sniff(name, type, data);
   if (!kind) {
     throw new Error("Drop a fixture JSON, a PDF, or a JPEG or PNG.");
   }
   if (kind === "pdf") {
+    const pages = countPdfPages(data);
+    const cap = pageCap(privateMode);
+    if (pages > cap) throw new Error(pageCapMessage(pages, cap, privateMode));
     try {
       const text = await extractPdfText(data);
-      return parseDocumentText(text, { sourceKind: "pdf", fileName: name });
+      return parseDocumentText(text, { sourceKind: "pdf", fileName: name, privateMode });
     } catch (error) {
       if (!isNoTextLayer(error)) throw error;
+      try {
+        const encoded = await extractEncodedPdfText(data);
+        return parseDocumentText(encoded, { sourceKind: "pdf", fileName: name, privateMode });
+      } catch (encodedError) {
+        if (!isNoTextLayer(encodedError)) throw encodedError;
+      }
       const extracted = await extractPdfPageImages(data);
       if (pageNeedsRaster(extracted)) {
         try {
-          return await ocrRasterizedPdf(data, name);
+          return await ocrRasterizedPdf(data, name, privateMode);
         } catch (rasterError) {
           if (!extracted.images.length) throw rasterError;
         }
       }
+      if (extracted.images.length > cap) throw new Error(pageCapMessage(extracted.images.length, cap, privateMode));
       if (!extracted.images.length) {
         throw new Error("No text layer in this PDF. The page image could not be read. Missing amounts were not filled with zero.");
       }
-      return packetFromOcr(await ocrBytes(extracted.images.map((image) => image.bytes)), "pdf-ocr", name);
+      return packetFromOcr(await ocrBytes(extracted.images.map((image) => image.bytes)), "pdf-ocr", name, privateMode);
     }
   }
 
   const labeled = await tryLabeled(kind, data);
   if (labeled?.lines.length) {
-    const packet = parseDocumentText(labeled.lines.join("\n"), { sourceKind: kind, fileName: name });
+    const packet = parseDocumentText(labeled.lines.join("\n"), { sourceKind: kind, fileName: name, privateMode });
     if (labeled.rejected.length) packet.ingest.dropped = labeled.rejected.concat(packet.ingest.dropped);
     return packet;
   }
@@ -143,5 +156,5 @@ export async function ingestDocument({ name = "", type = "", bytes }) {
   if (!rows.length) {
     throw new Error("No labeled anonymized lines cleared the confidence floor. OCR did not read this image. Missing amounts were not filled with zero.");
   }
-  return packetFromOcr(rows, `${kind}-ocr`, name);
+  return packetFromOcr(rows, `${kind}-ocr`, name, privateMode);
 }

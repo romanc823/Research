@@ -349,6 +349,57 @@ function buildSingleImagePdf({ content, dict, stream, mediaBox = "0 0 612 792" }
   return concat(parts);
 }
 
+export function buildMultiPageTextPdf(pageLines) {
+  const streams = pageLines.map((lines) => {
+    const commands = ["BT", "/F1 11 Tf", "72 740 Td", "14 TL"];
+    lines.forEach((line, index) => {
+      if (index > 0) commands.push("T*");
+      commands.push(`(${escapePdf(line)}) Tj`);
+    });
+    commands.push("ET");
+    return bytesFromLatin1(`${commands.join("\n")}\n`);
+  });
+  const fontId = 3;
+  const pageIds = streams.map((_, index) => 4 + index * 2);
+  const contentIds = streams.map((_, index) => 5 + index * 2);
+  const lastId = contentIds[contentIds.length - 1] || fontId;
+  const parts = [];
+  const offsets = [0];
+  function here() {
+    return parts.reduce((sum, part) => sum + part.length, 0);
+  }
+  function push(part) {
+    parts.push(part);
+  }
+  function obj(id, body) {
+    offsets[id] = here();
+    push(body);
+  }
+
+  push("%PDF-1.4\n");
+  obj(1, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  obj(2, `2 0 obj\n<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${streams.length} >>\nendobj\n`);
+  obj(fontId, "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n");
+  streams.forEach((stream, index) => {
+    const pageId = pageIds[index];
+    const contentId = contentIds[index];
+    obj(pageId, `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents ${contentId} 0 R /Resources << /Font << /F1 ${fontId} 0 R >> >> >>\nendobj\n`);
+    offsets[contentId] = here();
+    push(`${contentId} 0 obj\n<< /Length ${stream.length} >>\nstream\n`);
+    push(stream);
+    push("\nendstream\nendobj\n");
+  });
+
+  const xrefAt = here();
+  let xref = `xref\n0 ${lastId + 1}\n0000000000 65535 f \n`;
+  for (let id = 1; id <= lastId; id += 1) {
+    xref += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  }
+  xref += `trailer\n<< /Size ${lastId + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+  push(xref);
+  return concat(parts);
+}
+
 export async function extractPdfText(bytes) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (data.length < 5 || data[0] !== 0x25 || data[1] !== 0x50) {

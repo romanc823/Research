@@ -60,7 +60,15 @@ The left rail lists 20 synthetic packets. Pick one. The main pane runs that pack
 
 The header counts how many fixtures match the `expected` block in their JSON. That count is the same check as `npm run check`.
 
-The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. JPEG and FlateDecode scans go straight to OCR. Fax (CCITT), JBIG2, and JPEG2000 scans are rasterized in the browser first. It refuses an SSN or EIN pattern, a page under the confidence floor, and a page image that cannot be painted. Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
+The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPEG/PNG, or a scan or photo of those same labels. OCR runs in the browser when the text layer and the label font are both missing. JPEG and FlateDecode scans go straight to OCR. Fax (CCITT), JBIG2, and JPEG2000 scans are rasterized in the browser first. It refuses an SSN or EIN pattern, a page under the confidence floor, and a page image that cannot be painted. On the public desk a PDF over 40 pages is refused. Blank amounts are omitted rather than stored as zero. Sample buttons load synthetic files from `samples/ingest/`.
+
+## Internal desk
+
+Public Pages stays anonymized. For a real packet on a machine you control, start the local server and open `?desk=private` (the red banner). The packet stays in the tab. It is not uploaded and it is not saved. Reload clears it. Do not commit that file, and do not drop it on the public Pages URL.
+
+The internal desk reads W-2 boxes 1–6 and 12, SSA net benefits, 1099-R gross, and 1099-INT / 1099-DIV when the text layer states them. A blank box stays blank. The page cap is 100. Fax, JBIG2, and JPEG2000 scans still rasterize before OCR. Details, the savings rule, and the public defaults are in [docs/PHASE-2.7.md](docs/PHASE-2.7.md).
+
+A High card can show a planning estimate when the packet has an explicit ordinary rate and a QBI gap. The line is **Planning estimate for human review. Not tax advice.** It is not present copy. Medium cards do not show a dollar. Types 14 and 15 keep their fixed lines.
 
 ## Layout
 
@@ -72,6 +80,9 @@ The drop zone accepts a local fixture JSON file, a text-layer PDF, a labeled JPE
 | `js/intake.js` | JSON fixture gate |
 | `js/ingest.js` | Text layer, label font, then OCR |
 | `js/ingest-fields.js` | Fail-closed field parser, including the OCR floors |
+| `js/form-layout.js` | Internal-desk IRS box reader. Blank stays blank |
+| `js/desk-mode.js` | `?desk=private` and the page caps |
+| `js/savings.js` | High-card planning estimate. Omitted when the rate is missing |
 | `js/ocr.js` | Tesseract.js in the browser and in `npm run check` |
 | `js/pdf-images.js` | JPEG and FlateDecode page images |
 | `js/pdf-raster.js` | PDF.js page paint for CCITT, JBIG2, and JPEG2000 |
@@ -156,4 +167,4 @@ npm run check
 
 `npm install` loads tesseract.js, pdfjs-dist, and the canvas package for the checker. Node 20 is enough: the rasterizer installs `Promise.withResolvers` before PDF.js opens a document. The Pages site does not use `node_modules`; it loads `vendor/ocr/` and `vendor/pdfjs/`.
 
-The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan, fax, and photo samples invent a zero or raise types 13, 14, or 15 from a blank.
+The script fails if a fixture's bands drift, if present copy breaks a talk ban, if type 14 or 15 copy changes, if REP without hours comes back as Medium, if a fixture contains an SSN- or EIN-shaped number, or if the scan, fax, and photo samples invent a zero or raise types 13, 14, or 15 from a blank. It also fails if the public desk accepts a packet without `ANON: TRUE` or with an SSN, if the internal desk cannot score a form layout, if a Medium or silent row shows a savings dollar, or if desk code posts a packet.

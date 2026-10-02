@@ -6,6 +6,7 @@
 import { extractFields, assertFieldsOnly } from "./extract.js";
 import { scoreAll, presentable, byTypeOrder, TYPE_ORDER } from "./score.js";
 import { presentCopy, findTalkBan, FIXED_COPY } from "./present.js";
+import { savingsFor } from "./savings.js";
 
 export function evaluateFixture(fixture, typesById = {}) {
   const fields = extractFields(fixture);
@@ -21,6 +22,8 @@ export function evaluateFixture(fixture, typesById = {}) {
       error = err.message;
     }
     const ban = findTalkBan(copy);
+    const savings = hit.band === "High" ? savingsFor(hit, fields, fixture) : null;
+    const savingsBan = savings ? findTalkBan(`${savings.label} ${savings.basis}`) : null;
     const fixedOk = hit.typeId !== "14" && hit.typeId !== "15"
       ? true
       : copy === FIXED_COPY[hit.typeId];
@@ -31,7 +34,8 @@ export function evaluateFixture(fixture, typesById = {}) {
       trigger: meta.trigger_summary || "",
       registryPassTag: meta.pass_tag || null,
       copy,
-      ban,
+      savings,
+      ban: ban || savingsBan,
       error,
       fixedOk,
     };

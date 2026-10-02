@@ -36,6 +36,21 @@ body {
 
 button, select, input { font: inherit; color: inherit; }
 
+.desk-banner {
+  padding: 14px 32px;
+  background: #8d2e2a;
+  color: #fff8f4;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.desk-banner strong { font-weight: 700; }
+
+.desk-banner a {
+  color: #fff;
+  font-weight: 700;
+}
+
 .mast {
   display: flex;
   justify-content: space-between;
@@ -282,6 +297,27 @@ select { padding: 10px 12px; }
   overflow: hidden;
   margin-top: 8px;
   color: var(--ink);
+}
+
+.savings {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.savings-label {
+  display: block;
+  font-weight: 700;
+  color: var(--high);
+}
+
+.savings-basis, .savings-conf {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
 }
 
 .detail {

@@ -32,7 +32,9 @@ Six sample buttons load synthetic packets (no client data):
 - **Sample photo** — not the label font. OCR should show the SEP / Solo card from an explicit retirement zero. Blank hours and blank basis stay blank.
 - **Sample fax** — the same Augusta labels as a CCITT Group 4 scan. OCR should show the same Augusta card. Blank retirement stays blank. The first fax also loads the page rasterizer.
 
-OCR runs when a PDF has no text layer, or when a JPEG/PNG is not the label font. JPEG and FlateDecode page images go straight to OCR. CCITT, JBIG2, and JPEG2000 pages are rasterized in the browser first. A page that still cannot be read is refused, with no amounts filled in as zero. A page with no `ANON: TRUE` and `FILER-###` above the confidence floor (0.8), and any SSN or EIN pattern, is refused. Lines under that floor are omitted. Lines that would raise cost segregation, Augusta, or hire-kids (types 13, 14, and 15) need 0.9. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
+OCR runs when a PDF has no text layer, or when a JPEG/PNG is not the label font. JPEG and FlateDecode page images go straight to OCR. CCITT, JBIG2, and JPEG2000 pages are rasterized in the browser first. A page that still cannot be read is refused, with no amounts filled in as zero. A page with no `ANON: TRUE` and `FILER-###` above the confidence floor (0.8), and any SSN or EIN pattern, is refused. The public desk also refuses a PDF over 40 pages. Lines under that floor are omitted. Lines that would raise cost segregation, Augusta, or hire-kids (types 13, 14, and 15) need 0.9. Score floors are unchanged research values; the firm still has to lock the dollar figures before live client scoring.
+
+The internal desk is `?desk=private` on a local `npm start` URL, with the red banner. It is for a packet that stays in that tab. Do not use the public Pages URL for a live file. See [PHASE-2.7.md](PHASE-2.7.md).
 
 Do not open `index.html` from Finder or Explorer. A `file://` tab blocks ES modules and `fetch`.
 
