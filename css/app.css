@@ -33,6 +33,9 @@ html, body {
   viewport, not the tool slot, so a viewport min-height overflows the
   slot and the host clips the desk into a strip. Fill the iframe instead
   and scroll the rail and stage inside it.
+
+  These selectors match this document only (html.planning-embed is set
+  on the desk). They do not style the host page or other tools.
 */
 html.planning-embed,
 html.planning-embed body {

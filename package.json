@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
-    "check": "node tools/self-check.mjs",
+    "check": "node tools/self-check.mjs && node tools/embed-isolation-check.mjs",
     "fixtures": "node tools/build-fixtures.mjs",
     "ingest-samples": "node tools/write-ingest-samples.mjs"
   },

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Planning Tools mount fixture</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { display: flex; background: #101820; color: #17202a; font: 15px/1.4 "Segoe UI", Helvetica, sans-serif; }
+    .nav { width: 220px; background: #0e1c2f; color: #d5deea; padding: 18px 0; }
+    .nav p { margin: 0 16px 12px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #8aa0b8; }
+    .nav button { display: block; width: 100%; text-align: left; background: transparent; color: inherit; border: 0; padding: 10px 16px; cursor: pointer; }
+    .nav button.active { background: #c4a35a; color: #1c1408; font-weight: 650; }
+    #sharedShell { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #e7eef3; }
+    .chrome { height: 56px; flex: none; display: flex; align-items: center; padding: 0 18px; background: #143028; color: #f4f7f5; }
+    #toolSlot {
+      flex: 1; min-height: 0; position: relative; overflow: hidden;
+      display: flex; flex-direction: column;
+      background: #d5e4ee;
+    }
+    .tool-panel { flex: 1; padding: 28px 32px; }
+    .tool-panel h1 { margin: 0 0 8px; font-size: 28px; }
+    .tool-panel p { margin: 0; max-width: 36rem; }
+    #bvPanel { background: #e7f2ea; }
+    #scorpPanel { background: #f3ead2; }
+    /* Shell modal: closed unless .open. Open rules copy the live slot
+       (absolute, 100dvh) that clipped the desk before the embed fit. */
+    #taxPlanningDeskModal.modal-bg { display: none; }
+    #taxPlanningDeskModal.modal-bg.open {
+      display: flex;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      height: calc(100vh - 56px);
+      min-height: calc(100dvh - 56px);
+      background: #102033;
+    }
+    .tp-modal { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+    .tp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .tp-desk-frame {
+      width: 100%;
+      height: calc(100dvh - 56px);
+      min-height: calc(100dvh - 56px);
+      border: 0;
+      background: #f3efe6;
+    }
+    /* Pre-fix host: no absolute modal, iframe at the browser default, pinned
+       to the bottom of the slot. */
+    #toolSlot.legacy { justify-content: flex-end; }
+    #toolSlot.legacy .tool-panel { flex: none; }
+    #toolSlot.legacy #taxPlanningDeskModal.modal-bg.open {
+      position: static;
+      inset: auto;
+      height: auto;
+      min-height: 0;
+      max-height: none;
+      flex: none;
+      align-self: stretch;
+    }
+    #toolSlot.legacy .tp-desk-frame { height: auto; min-height: 0; flex: none; }
+  </style>
+</head>
+<body>
+  <aside class="nav">
+    <p>Platforms</p>
+    <button type="button" data-tool="bv" class="active">Business Valuator</button>
+    <button type="button" data-tool="scorp">S Corp</button>
+    <button type="button" data-tool="tax">Tax Planning App</button>
+  </aside>
+  <div id="sharedShell">
+    <header class="chrome"><span id="toolTitle">Business Valuator</span></header>
+    <div id="toolSlot">
+      <section class="tool-panel" id="bvPanel">
+        <h1>Business Valuator</h1>
+        <p id="bvCopy">Valuation worksheet for the selected client. Tax Planning stays mounted in this slot and must stay hidden.</p>
+      </section>
+      <section class="tool-panel" id="scorpPanel" hidden>
+        <h1>S Corp</h1>
+        <p id="scorpCopy">Compensation and election notes for the S corp tool.</p>
+      </section>
+      <div class="modal-bg" id="taxPlanningDeskModal">
+        <div class="modal tp-modal">
+          <div class="modal-body tp-body">
+            <iframe class="tp-desk-frame" id="tpDeskFrame" title="Tax Planning Research Desk" src="/?embed=planning"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const TITLES = { bv: "Business Valuator", scorp: "S Corp", tax: "Tax Planning App" };
+    function selectTool(name) {
+      const mount = document.getElementById("taxPlanningDeskModal");
+      mount.classList.toggle("open", name === "tax");
+      document.getElementById("bvPanel").hidden = name !== "bv";
+      document.getElementById("scorpPanel").hidden = name !== "scorp";
+      document.getElementById("toolTitle").textContent = TITLES[name] || name;
+      for (const button of document.querySelectorAll(".nav button")) {
+        button.classList.toggle("active", button.dataset.tool === name);
+      }
+    }
+    for (const button of document.querySelectorAll(".nav button")) {
+      button.addEventListener("click", () => selectTool(button.dataset.tool));
+    }
+    window.selectTool = selectTool;
+  </script>
+</body>
+</html>
