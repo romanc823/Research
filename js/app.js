@@ -1,5 +1,5 @@
 import { isPrivateDesk } from "./desk-mode.js";
-import { fitEmbeddedFrame } from "./embed-frame.js";
+import { fitEmbeddedFrame, releaseEmbeddedFrame } from "./embed-frame.js";
 import { evaluateFixture, matchExpectation } from "./evaluate.js";
 import { ingestDocument } from "./ingest.js";
 import { parseFixtureText } from "./intake.js";
@@ -7,6 +7,7 @@ import { buildReport, reportJson, reportMarkdown } from "./report.js";
 
 fitEmbeddedFrame();
 window.addEventListener("resize", fitEmbeddedFrame);
+window.addEventListener("pagehide", () => releaseEmbeddedFrame());
 requestAnimationFrame(() => fitEmbeddedFrame());
 
 const privateDesk = isPrivateDesk(window.location.search);
