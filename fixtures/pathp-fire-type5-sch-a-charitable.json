@@ -1,0 +1,27 @@
+{
+  "id": "pathp-fire-type5-sch-a-charitable",
+  "anon": true,
+  "label": "Prior-year Schedule A charitable — py amount only",
+  "group": "silent",
+  "filer_ref": "FILER-904",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule A"
+  ],
+  "scenario": "Path P records py_charitable_sch_a_amount only. It does not write prior_year_sch_a_charitable. The two-year lookback scores on a later Path R packet.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_charitable_sch_a": true,
+    "py_charitable_sch_a_amount": 8500,
+    "py_form_8283": false,
+    "py_standard_deduction": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "pathr-high-n28-8938-gap",
+  "anon": true,
+  "label": "Schedule B Yes — Form 8938 threshold, form missing",
+  "group": "high",
+  "filer_ref": "FILER-909",
+  "tax_year": 2025,
+  "path": "R",
+  "packet_kind": "research_packet",
+  "forms_in_packet": [
+    "1040",
+    "Schedule B"
+  ],
+  "scenario": "Schedule B Yes plus an explicit Form 8938 threshold, and Form 8938 is missing. This is not Yes alone.",
+  "fields": {
+    "schedule_b_foreign_yes": true,
+    "form_8938_threshold_met": true,
+    "form_8938": false,
+    "form_8938_incomplete": false,
+    "form_3520": false,
+    "form_8621": false,
+    "fbar_signal": false,
+    "foreign_account_value_explicit": 600000
+  },
+  "expected": {
+    "high": [
+      "N28"
+    ],
+    "medium": [],
+    "compliance_high": [
+      "N28"
+    ]
+  }
+}

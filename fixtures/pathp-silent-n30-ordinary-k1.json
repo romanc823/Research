@@ -1,0 +1,29 @@
+{
+  "id": "pathp-silent-n30-ordinary-k1",
+  "anon": true,
+  "label": "Prior-year ordinary partnership K-1",
+  "group": "silent",
+  "filer_ref": "FILER-907",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule E",
+    "Form 1065 K-1"
+  ],
+  "scenario": "Ordinary partnership K-1 income only. N30 stays silent without a liquidation or a section 751 statement.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_k1_partnership": true,
+    "py_k1_liquidating": false,
+    "py_section_751_statement": false,
+    "py_form_1065_final": false,
+    "py_passthrough_interest_disposition": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

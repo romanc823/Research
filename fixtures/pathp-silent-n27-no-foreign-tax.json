@@ -1,0 +1,28 @@
+{
+  "id": "pathp-silent-n27-no-foreign-tax",
+  "anon": true,
+  "label": "Prior-year return — no foreign tax",
+  "group": "silent",
+  "filer_ref": "FILER-905",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule A"
+  ],
+  "scenario": "No Form 1116 and no foreign tax amount. N27 stays silent.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_form_1116": false,
+    "py_foreign_tax_paid": null,
+    "py_ftc_carryover": false,
+    "py_foreign_tax_deducted_sch_a": false,
+    "py_agi": 120000
+  },
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

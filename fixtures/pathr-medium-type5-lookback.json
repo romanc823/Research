@@ -1,0 +1,27 @@
+{
+  "id": "pathr-medium-type5-lookback",
+  "anon": true,
+  "label": "Standard deduction — prior-year charitable lookback",
+  "group": "medium",
+  "filer_ref": "FILER-914",
+  "tax_year": 2025,
+  "path": "R",
+  "packet_kind": "research_packet",
+  "forms_in_packet": [
+    "1040"
+  ],
+  "scenario": "Path R standard deduction and prior_year_sch_a_charitable written once as lookback. Type 5 stays on the tray.",
+  "fields": {
+    "standard_deduction": true,
+    "prior_year_sch_a_charitable": 8500,
+    "charitable_sch_a": false,
+    "form_8283": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [
+      "5"
+    ],
+    "compliance_high": []
+  }
+}

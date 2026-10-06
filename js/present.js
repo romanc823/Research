@@ -13,6 +13,8 @@ export const FIXED_COPY = {
 const BANNED = [
   { re: /you should/i, label: "you should" },
   { re: /qualify for/i, label: "qualify for" },
+  { re: /\bqualifies\b/i, label: "qualifies" },
+  { re: /\brecommend\b/i, label: "recommend" },
   { re: /guaranteed/i, label: "guaranteed" },
   { re: /\bbest strategy\b/i, label: "best strategy" },
   { re: /save\s*\$/i, label: "save $" },
@@ -283,6 +285,62 @@ const TEMPLATES = {
       "Form 6252 or Form 8824 is in the packet, or Schedule D shows a large real-estate gain with neither form.",
       "Form 6252, Form 8824, or Schedule D.",
       "the flag is the form, or the gain without those forms.",
+      "optional tray for planner review.",
+    );
+  },
+  N27() {
+    return line(
+      "foreign tax paid is on the packet, or Form 1116 shows a carryover or both a credit form and a Schedule A foreign-tax deduction.",
+      "Form 1116, Schedule 3, Schedule A when foreign tax was deducted, and the carryover schedule when present.",
+      "limitation baskets, paid versus accrued, and treaty interaction stay with the reviewer.",
+      "optional tray for planner review.",
+    );
+  },
+  N28() {
+    return line(
+      "Schedule B Part III is Yes, and the packet also shows a Form 8938 threshold, an incomplete Form 8938, 3520, or 8621, or a PFIC or foreign-trust marker.",
+      "FinCEN Form 114 when the FBAR threshold is met, plus Form 8938, Form 3520, or Form 8621 for the regime that applies. FinCEN 114 is not Form 8938.",
+      "which regime applies, and whether the FBAR and Form 8938 thresholds are met, stays with the compliance reviewer.",
+      "hold for compliance review.",
+    );
+  },
+  N29() {
+    return line(
+      "prior-year AGI and total tax are on the packet, and current-year estimates plus withholding sit below the section 6654(d) harbor.",
+      "the prior-year Form 1040 AGI and total tax, and the current-year estimate and withholding figures.",
+      "the annualized-income exception and farmer or fisher rules stay with the reviewer. A same-year Form 2210 flag is not repeated here. This tray item is never a must-review flag.",
+      "optional tray for planner review.",
+    );
+  },
+  N30() {
+    return line(
+      "a partnership interest disposition or liquidating distribution is paired with a section 751 statement or a final Form 1065.",
+      "the Schedule K-1, the section 751 statement, and the final Form 1065 when present.",
+      "section 736(a) versus 736(b), and capital versus ordinary under section 751, stays with the planner. The desk does not choose the bucket.",
+      "hold for planner review.",
+    );
+  },
+  N31() {
+    return line(
+      "MAGI, Form 8606 or a nondeductible IRA signal, and a plan or Form W-2 after-tax signal are all on the packet.",
+      "Form 8606 and the plan document or Form W-2 box 12.",
+      "the pro-rata rule and step-transaction scrutiny stay with the reviewer.",
+      "optional tray for planner review.",
+    );
+  },
+  N32() {
+    return line(
+      "a standard deduction or a capped state-and-local line sits with pass-through income, and the state PTE or BAIT election form is missing or incomplete.",
+      "the state election form, owner consents, and the K-1 or S corporation income.",
+      "state election deadlines and owner consents stay with the reviewer. The federal SALT-cap interaction is an inference, not a federal election.",
+      "optional tray for planner review.",
+    );
+  },
+  N34() {
+    return line(
+      "MAGI is over the section 1411 threshold and a disposition or passthrough look-through gap is on the packet.",
+      "Form 8960 when present, Schedule D or Form 4797, and the passthrough-interest records.",
+      "Prop. Reg. §1.1411-7 is a proposed regulation. Whether to follow that proposed text stays with the reviewer. The desk does not treat it as final.",
       "optional tray for planner review.",
     );
   },

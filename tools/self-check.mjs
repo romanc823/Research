@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractFields } from "../js/extract.js";
-import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS, TYPE_2B_LOCK } from "../js/score.js";
+import { scoreAll, bandOf, TYPE_ORDER, STUB_FLOORS, TYPE_2B_LOCK, N29_HARBOR, N34_MAGI } from "../js/score.js";
 import { FIXED_COPY, findTalkBan, presentCopy } from "../js/present.js";
 import { LOCKED_REPORT_LINES, buildReport, formatReportDollars, reportJson, reportMarkdown, reportProse } from "../js/report.js";
 import { evaluateFixture, matchExpectation, copyShapeOk } from "../js/evaluate.js";
@@ -59,6 +59,11 @@ const registryIds = registry.types.map((type) => type.id);
 if (registryIds.join(",") !== TYPE_ORDER.join(",")) {
   fail(`types.json ids differ from TYPE_ORDER\n registry ${registryIds}\n order ${TYPE_ORDER}`);
 }
+if (registryIds.includes("N33") || TYPE_ORDER.includes("N33")) fail("N33 was added");
+if (registryIds.some((id) => id.startsWith("og")) || TYPE_ORDER.some((id) => String(id).startsWith("og"))) {
+  fail("an O&G type was added");
+}
+if (!registry.pass_tags["compliance-flag"]) fail("compliance-flag pass tag missing");
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "fixtures/manifest.json"), "utf8"));
 const ssn = /\b\d{3}-\d{2}-\d{4}\b/;
@@ -83,6 +88,15 @@ for (const item of manifest.fixtures) {
     if (card.typeId === "2b" && card.band === "Medium") fail(`${item.id} raised 2b to Medium`);
     if (card.typeId === "2b" && card.passTag !== "second-eye") fail(`${item.id} type 2b pass tag is ${card.passTag}`);
     if (card.typeId === "2b" && card.savings) fail(`${item.id} showed a type 2b dollar without a locked payroll split`);
+    if (card.typeId === "N28" && (card.passTag !== "compliance-flag" || card.lane !== "compliance-only" || card.band !== "High")) {
+      fail(`${item.id} N28 card was ${card.band}/${card.lane}/${card.passTag}`);
+    }
+    if (card.typeId === "N30" && (card.passTag !== "second-eye" || card.band !== "High")) {
+      fail(`${item.id} N30 card was ${card.band}/${card.passTag}`);
+    }
+    if ((card.typeId === "N27" || card.typeId === "N28" || card.typeId === "N29" || card.typeId === "N30" || card.typeId === "N31" || card.typeId === "N32" || card.typeId === "N34") && card.savings) {
+      fail(`${item.id} showed a dollar on ${card.typeId}`);
+    }
   }
   if (item.id === "high-2b-se-only") {
     if (fixture.fields.schedule_c === true) fail("SE-only fixture includes Schedule C");
@@ -117,14 +131,45 @@ for (const item of manifest.fixtures) {
   const type2b = evaluation.scored.find((row) => row.typeId === "2b");
   if (!type2b) fail(`${item.id} did not score type 2b`);
   else if (type2b.band === "Medium") fail(`${item.id} scored 2b as Medium`);
+  if (fixture.path === "P") {
+    const prior = Object.keys(fixture.fields || {}).filter((key) => key.startsWith("prior_year_"));
+    if (prior.length) fail(`${item.id} dual-wrote ${prior.join(", ")}`);
+  }
+  if (Array.isArray(fixture.expected?.compliance_high)) {
+    const complianceCards = evaluation.cards
+      .filter((card) => card.lane === "compliance-only")
+      .map((card) => card.typeId);
+    if (complianceCards.join(",") !== fixture.expected.compliance_high.join(",")) {
+      fail(`${item.id} compliance cards ${complianceCards} vs ${fixture.expected.compliance_high}`);
+    }
+  }
+  if (item.id === "pathp-fire-type5-sch-a-charitable") {
+    if (evaluation.fields.py_charitable_sch_a_amount !== 8500) fail("Path P charitable amount was dropped");
+    if (evaluation.fields.prior_year_sch_a_charitable !== 0) fail("Path P charitable amount was copied onto the lookback key");
+    if (evaluation.fields.charitable_sch_a === true) fail("Path P charitable flag was copied onto Schedule A");
+    if (bandOf(evaluation.scored, "5") !== "silent") fail("Path P scored type 5");
+  }
+  if (item.id === "pathr-medium-n29-harbor-shortfall") {
+    const harbor = evaluation.scored.find((row) => row.typeId === "N29");
+    if (!harbor || harbor.band !== "Medium" || harbor.evidence.harbor !== 52800 || harbor.evidence.current_es_plus_wh !== 35000) {
+      fail(`N29 harbor evidence was ${JSON.stringify(harbor?.evidence)}`);
+    }
+  }
+  if (item.id === "pathp-silent-n28-sch-b-yes-alone" || item.id === "pathp-silent-n29-high-agi-alone") {
+    const typeId = item.id.includes("n28") ? "N28" : "N29";
+    const row = evaluation.scored.find((entry) => entry.typeId === typeId);
+    if (!row || row.band !== "silent" || !/docs needed/i.test(row.reason)) {
+      fail(`${item.id} silent reason was ${row?.reason}`);
+    }
+  }
   const rep = evaluation.scored.find((row) => row.typeId === "18");
   if (item.id.startsWith("silent") && rep.band !== "silent") {
     fail(`${item.id} REP band is ${rep.band}`);
   }
 }
 
-if (manifest.fixtures.length < 12 || manifest.fixtures.length > 25) {
-  fail(`fixture count ${manifest.fixtures.length} is outside 12–25`);
+if (manifest.fixtures.length !== 39) {
+  fail(`fixture count ${manifest.fixtures.length} is not 39`);
 }
 
 const empty = evaluateFixture({ anon: true, tax_year: 2025, fields: {} }, typesById);
@@ -341,6 +386,20 @@ for (const [key, value] of Object.entries(floorSnapshot)) {
 if (TYPE_2B_LOCK.seIncome !== 100_000 || TYPE_2B_LOCK.seBandMin !== 50_000 || TYPE_2B_LOCK.rcGap !== 25_000) {
   fail("type 2b lock drifted");
 }
+if (N29_HARBOR.agiThreshold !== 150_000 || N29_HARBOR.highAgiNumerator !== 11 || N29_HARBOR.highAgiDenominator !== 10) {
+  fail("N29 harbor lock drifted");
+}
+if (N34_MAGI.single !== 200_000 || N34_MAGI.mfj !== 250_000 || N34_MAGI.mfs !== 125_000) {
+  fail("N34 MAGI floors drifted");
+}
+const taxonomyText = fs.readFileSync(path.join(root, "docs/TAXONOMY.md"), "utf8");
+if (!taxonomyText.includes("Se-alone High when `se_income` is at least $100,000")) {
+  fail("locked type 2b floor text changed");
+}
+if (!taxonomyText.includes("N33 (extension / estimated-payment adequacy) is not a type")) {
+  fail("taxonomy dropped the N33 kill");
+}
+if (!taxonomyText.includes("O&G stays parked")) fail("taxonomy reopened O&G");
 
 const payrollSplit = { oasdi_wage_base: 176_100, oasdi_rate: 0.124, medicare_rate: 0.029 };
 const aboveBaseFields = {
@@ -598,6 +657,131 @@ expectBand("roth both signals", { trad_ira_or_401k: true, low_ti_year: true }, {
 expectBand("energy docs", { residential_energy_docs: true }, { 21: "Medium" });
 expectBand("sehi on schedule c", { schedule_c: true, sehi_gap: true }, { 19: "Medium" });
 expectBand("sehi without the business return", { sehi_gap: true }, { 19: "silent" });
+
+expectBand("n27 foreign tax paid", { form_1116: true, foreign_tax_paid: 4200, ftc_carryover: true }, { N27: "Medium" });
+expectBand("n27 amount without the form", { foreign_tax_paid: 500 }, { N27: "Medium" });
+expectBand("n27 form 1116 alone", { form_1116: true }, { N27: "silent" });
+expectBand("n27 no foreign tax", { form_1116: false, ftc_carryover: false }, { N27: "silent" });
+expectBand("n28 yes alone", { schedule_b_foreign_yes: true }, { N28: "silent" });
+expectBand("n28 yes plus incomplete 8938", { schedule_b_foreign_yes: true, form_8938_incomplete: true }, { N28: "High" });
+expectBand("n28 yes plus threshold", { schedule_b_foreign_yes: true, form_8938_threshold_met: true, form_8938: false }, { N28: "High" });
+expectBand("n28 yes plus stated account value", { schedule_b_foreign_yes: true, foreign_account_value_explicit: 80000 }, { N28: "High" });
+expectBand("n28 pfic without the form", { schedule_b_foreign_yes: true, pfic_or_foreign_trust_marker: true }, { N28: "High" });
+expectBand("n28 pfic with complete 8621", { schedule_b_foreign_yes: true, pfic_or_foreign_trust_marker: true, form_8621: true }, { N28: "silent" });
+expectBand("n28 threshold without schedule b yes", { form_8938_threshold_met: true }, { N28: "silent" });
+expectBand("n28 fbar note is not form 8938", { fbar_signal: true }, { N28: "silent" });
+expectBand("n28 incomplete 3520", { schedule_b_foreign_yes: true, form_3520_incomplete: true }, { N28: "High" });
+expectBand("n29 harbor shortfall", {
+  prior_year_agi: 275000, prior_year_total_tax: 48000, estimates_paid: 20000, withholding: 15000,
+}, { N29: "Medium", 4: "silent" });
+expectBand("n29 harbor met", {
+  prior_year_agi: 275000, prior_year_total_tax: 48000, estimates_paid: 40000, withholding: 12800,
+}, { N29: "silent" });
+expectBand("n29 one dollar under harbor", {
+  prior_year_agi: 275000, prior_year_total_tax: 48000, estimates_paid: 40000, withholding: 12799,
+}, { N29: "Medium" });
+expectBand("n29 agi at 150000 uses 100 percent", {
+  prior_year_agi: 150000, prior_year_total_tax: 20000, estimates_paid: 19999, withholding: 0,
+}, { N29: "Medium" });
+expectBand("n29 agi at 150000 harbor met", {
+  prior_year_agi: 150000, prior_year_total_tax: 20000, estimates_paid: 20000, withholding: 0,
+}, { N29: "silent" });
+expectBand("n29 agi just over 150000 uses 110 percent", {
+  prior_year_agi: 150001, prior_year_total_tax: 20000, estimates_paid: 21000, withholding: 0,
+}, { N29: "Medium" });
+expectBand("n29 110 percent harbor met", {
+  prior_year_agi: 150001, prior_year_total_tax: 20000, estimates_paid: 22000, withholding: 0,
+}, { N29: "silent" });
+expectBand("n29 type 4 collision", {
+  prior_year_agi: 275000, prior_year_total_tax: 48000, estimates_paid: 10000, withholding: 10000, form_2210_underpay: true,
+}, { N29: "silent", 4: "High" });
+expectBand("n29 path p stays silent even with lookback keys", {
+  packet_path: "P",
+  py_agi: 275000,
+  py_total_tax: 48000,
+  prior_year_agi: 275000,
+  prior_year_total_tax: 48000,
+  estimates_paid: 1000,
+  withholding: 1000,
+}, { N29: "silent" });
+expectBand("n29 lookback without current estimates", {
+  prior_year_agi: 275000, prior_year_total_tax: 48000,
+}, { N29: "silent" });
+expectBand("n29 explicit zero payments", {
+  prior_year_agi: 900000, prior_year_total_tax: 80000, estimates_paid: 0, withholding: 0,
+}, { N29: "Medium" });
+expectBand("n30 section 751 exit", {
+  k1_liquidating: true, section_751_statement: true, passthrough_interest_disposition: true,
+}, { N30: "High" });
+expectBand("n30 ordinary k1", { k1_partnership: true }, { N30: "silent" });
+expectBand("n30 liquidating without support", { k1_liquidating: true }, { N30: "silent" });
+expectBand("n30 final return", { form_1065_final: true }, { N30: "High" });
+expectBand("n31 all three signals", { magi: 240000, form_8606: true, w2_box12_aftertax_or_roth: true }, { N31: "Medium" });
+expectBand("n31 magi only", { magi: 240000 }, { N31: "silent" });
+expectBand("n31 basis without the plan", { magi: 240000, form_8606: true }, { N31: "silent" });
+expectBand("n31 plan without form 8606", { magi: 240000, plan_doc_mega_backdoor: true }, { N31: "silent" });
+expectBand("n32 path r missing election", {
+  standard_deduction: true, k1_partnership: true, state_code: "NJ", state_pte_election_form: false,
+}, { N32: "Medium" });
+expectBand("n32 election already in the packet", {
+  standard_deduction: true, k1_partnership: true, state_code: "NJ", state_pte_election_form: true,
+}, { N32: "silent" });
+expectBand("n32 no state code", { standard_deduction: true, k1_partnership: true }, { N32: "silent" });
+expectBand("n32 salt cap instead of the standard deduction", {
+  salt_sch_a_capped: true, s_corp: true, state_code: "CA",
+}, { N32: "Medium" });
+expectBand("n32 path p does not fire", {
+  packet_path: "P",
+  py_standard_deduction: true,
+  py_k1_partnership: true,
+  py_state_code: "NJ",
+  standard_deduction: true,
+  k1_partnership: true,
+  state_code: "NJ",
+}, { N32: "silent" });
+expectBand("n34 single at the floor", {
+  magi: 200000, filing_status: "single", form_4797_or_sch_d_disposition: true,
+}, { N34: "silent" });
+expectBand("n34 single over the floor without form 8960", {
+  magi: 200001, filing_status: "single", form_4797_or_sch_d_disposition: true,
+}, { N34: "Medium" });
+expectBand("n34 mfj at the floor", {
+  magi: 250000, filing_status: "MFJ", passthrough_interest_disposition: true,
+}, { N34: "silent" });
+expectBand("n34 mfj passthrough gap even with form 8960", {
+  magi: 250001, filing_status: "married filing jointly", form_8960: true, nii_amount: 4000, passthrough_interest_disposition: true,
+}, { N34: "Medium" });
+expectBand("n34 computed niit without a disposition", {
+  magi: 300000, filing_status: "MFJ", form_8960: true, nii_amount: 4000,
+}, { N34: "silent" });
+expectBand("n34 schedule d already on form 8960", {
+  magi: 300000, filing_status: "single", form_8960: true, form_4797_or_sch_d_disposition: true,
+}, { N34: "silent" });
+expectBand("n34 mfs over 125000", {
+  magi: 125001, filing_status: "MFS", form_4797_or_sch_d_disposition: true,
+}, { N34: "Medium" });
+expectBand("n34 missing filing status", {
+  magi: 900000, passthrough_interest_disposition: true,
+}, { N34: "silent" });
+expectBand("n34 path p py magi", {
+  packet_path: "P",
+  py_magi: 260000,
+  py_filing_status: "single",
+  py_passthrough_interest_disposition: true,
+  py_form_8960: false,
+}, { N34: "Medium" });
+
+for (const typeId of ["N27", "N28", "N29", "N30", "N31", "N32", "N34"]) {
+  const band = typeId === "N28" || typeId === "N30" ? "High" : "Medium";
+  const copy = presentCopy({ typeId, band }, {});
+  if (!copy || findTalkBan(copy) || !copyShapeOk(copy, typeId)) fail(`present copy for ${typeId} failed: ${copy}`);
+}
+const n34Copy = presentCopy({ typeId: "N34", band: "Medium" }, {});
+if (!/proposed/i.test(n34Copy) || !/1\.1411-7/.test(n34Copy)) fail("N34 present copy dropped the proposed regulation label");
+const n28Copy = presentCopy({ typeId: "N28", band: "High" }, {});
+if (!/FinCEN 114 is not Form 8938/.test(n28Copy)) fail("N28 present copy conflated FinCEN 114 with Form 8938");
+const n29Copy = presentCopy({ typeId: "N29", band: "Medium" }, {});
+if (!/never a must-review flag/.test(n29Copy)) fail("N29 present copy did not keep the tray limit");
 
 function sameBytes(left, right) {
   if (left.length !== right.length) return false;
@@ -1252,7 +1436,7 @@ try {
   await shutdownOcr();
 }
 
-const neverHigh = ["3b", "5", "5b", "7b", "8a", "8b", "16", "19", "21", "22", "23", "24", "25", "26"];
+const neverHigh = ["3b", "5", "5b", "7b", "8a", "8b", "16", "19", "21", "22", "23", "24", "25", "26", "N27", "N29", "N31", "N32", "N34"];
 for (const item of manifest.fixtures) {
   const fixture = JSON.parse(fs.readFileSync(path.join(root, "fixtures", item.file), "utf8"));
   const { scored } = evaluateFixture(fixture, typesById);

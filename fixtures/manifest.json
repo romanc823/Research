@@ -151,6 +151,90 @@
       "file": "medium-operator-tray.json",
       "group": "medium",
       "label": "Composite tray — cash-balance, office, auto, states, grouping, SEHI, energy, R&D"
+    },
+    {
+      "id": "pathp-fire-n27-ftc",
+      "file": "pathp-fire-n27-ftc.json",
+      "group": "medium",
+      "label": "Prior-year Form 1116 — foreign tax and carryover"
+    },
+    {
+      "id": "pathp-fire-n28-foreign-account",
+      "file": "pathp-fire-n28-foreign-account.json",
+      "group": "high",
+      "label": "Prior-year Schedule B Yes — incomplete Form 8938"
+    },
+    {
+      "id": "pathp-fire-type5-sch-a-charitable",
+      "file": "pathp-fire-type5-sch-a-charitable.json",
+      "group": "silent",
+      "label": "Prior-year Schedule A charitable — py amount only"
+    },
+    {
+      "id": "pathp-silent-n27-no-foreign-tax",
+      "file": "pathp-silent-n27-no-foreign-tax.json",
+      "group": "silent",
+      "label": "Prior-year return — no foreign tax"
+    },
+    {
+      "id": "pathp-silent-n28-no-foreign-yes",
+      "file": "pathp-silent-n28-no-foreign-yes.json",
+      "group": "silent",
+      "label": "Prior-year Schedule B — foreign questions No"
+    },
+    {
+      "id": "pathp-silent-n28-sch-b-yes-alone",
+      "file": "pathp-silent-n28-sch-b-yes-alone.json",
+      "group": "silent",
+      "label": "Prior-year Schedule B Yes — no second gate"
+    },
+    {
+      "id": "pathp-silent-n29-high-agi-alone",
+      "file": "pathp-silent-n29-high-agi-alone.json",
+      "group": "silent",
+      "label": "Prior-year high AGI — no forward harbor"
+    },
+    {
+      "id": "pathp-silent-n30-ordinary-k1",
+      "file": "pathp-silent-n30-ordinary-k1.json",
+      "group": "silent",
+      "label": "Prior-year ordinary partnership K-1"
+    },
+    {
+      "id": "pathp-silent-n31-magi-only",
+      "file": "pathp-silent-n31-magi-only.json",
+      "group": "silent",
+      "label": "Prior-year MAGI — no Form 8606 or plan signal"
+    },
+    {
+      "id": "pathr-high-n28-8938-gap",
+      "file": "pathr-high-n28-8938-gap.json",
+      "group": "high",
+      "label": "Schedule B Yes — Form 8938 threshold, form missing"
+    },
+    {
+      "id": "pathr-high-n30-751-exit",
+      "file": "pathr-high-n30-751-exit.json",
+      "group": "high",
+      "label": "Partnership exit — section 751 statement"
+    },
+    {
+      "id": "pathr-medium-n29-harbor-shortfall",
+      "file": "pathr-medium-n29-harbor-shortfall.json",
+      "group": "medium",
+      "label": "Forward harbor — estimates below 110 percent"
+    },
+    {
+      "id": "pathr-medium-type5-lookback",
+      "file": "pathr-medium-type5-lookback.json",
+      "group": "medium",
+      "label": "Standard deduction — prior-year charitable lookback"
+    },
+    {
+      "id": "pathr-silent-n29-type4-collision",
+      "file": "pathr-silent-n29-type4-collision.json",
+      "group": "high",
+      "label": "Form 2210 this year — forward harbor stays silent"
     }
   ]
 }

@@ -1,0 +1,30 @@
+{
+  "id": "pathp-silent-n29-high-agi-alone",
+  "anon": true,
+  "label": "Prior-year high AGI — no forward harbor",
+  "group": "silent",
+  "filer_ref": "FILER-903",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040"
+  ],
+  "scenario": "Path P prior-year return with high AGI and total tax. Same-year estimates are not the forward harbor. N29 stays silent.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_agi": 275000,
+    "py_total_tax": 48000,
+    "py_estimates_paid": 12000,
+    "py_withholding": 18000
+  },
+  "docs_needed": [
+    "current_year_es_plan_or_path_r_packet_with_prior_year_lookback",
+    "projected_current_year_income"
+  ],
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

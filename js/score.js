@@ -35,10 +35,28 @@ export const TYPE_2B_LOCK = {
   rcGap: 25_000,
 };
 
+/**
+ * Statute figures for new types. Not STUB_FLOORS, and not read by types 1–15 or 18.
+ * N29: IRC §6654(d)(1)(C) uses 110% when prior-year AGI is over $150,000; otherwise §6654(d)(1)(B) is 100%.
+ * N34: IRC §1411(b) / Form 8960 — $200,000 unmarried, $250,000 MFJ, $125,000 MFS.
+ */
+export const N29_HARBOR = {
+  agiThreshold: 150_000,
+  highAgiNumerator: 11,
+  highAgiDenominator: 10,
+};
+
+export const N34_MAGI = {
+  single: 200_000,
+  mfj: 250_000,
+  mfs: 125_000,
+};
+
 export const TYPE_ORDER = [
   "1", "2", "2b", "3", "3b", "4", "5", "5b", "6", "7", "7b",
   "8a", "8b", "9", "11", "12", "13", "14", "15", "16",
   "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
+  "N27", "N28", "N29", "N30", "N31", "N32", "N34",
 ];
 
 function num(value) {
@@ -101,8 +119,8 @@ function estimatesFarAboveTax(fields) {
   return estimates > tax * STUB_FLOORS.estimatesMultiple && excess >= STUB_FLOORS.estimatesExcess;
 }
 
-function row(typeId, band, passTag, reason, evidence) {
-  const lane = band === "High" ? "must-review" : band === "Medium" ? "optional-tray" : "silent";
+function row(typeId, band, passTag, reason, evidence, laneOverride) {
+  const lane = laneOverride || (band === "High" ? "must-review" : band === "Medium" ? "optional-tray" : "silent");
   return {
     typeId,
     band,
@@ -181,6 +199,255 @@ function scoreScorpConversion(f) {
     }
   }
   return row("2b", "silent", null, silentReason, evidence);
+}
+
+/** Path P reads `py_*` only. Path R and legacy packets read the unprefixed key only. */
+function pick(fields, key) {
+  if (fields.packet_path === "P") return fields[`py_${key}`];
+  return fields[key];
+}
+
+function filingClass(status) {
+  const text = String(status || "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!text) return null;
+  if (text === "mfj" || text === "married filing jointly" || text === "joint") return "mfj";
+  if (text === "mfs" || text === "married filing separately") return "mfs";
+  if (
+    text === "single"
+    || text === "hoh"
+    || text === "head of household"
+    || text === "qw"
+    || text === "qualifying widow"
+    || text === "qualifying widow(er)"
+    || text === "qualifying surviving spouse"
+  ) return "unmarried";
+  return null;
+}
+
+function niitFloor(status) {
+  const kind = filingClass(status);
+  if (kind === "mfj") return N34_MAGI.mfj;
+  if (kind === "mfs") return N34_MAGI.mfs;
+  if (kind === "unmarried") return N34_MAGI.single;
+  return null;
+}
+
+function scoreForeignTaxCredit(f) {
+  const form1116 = bool(pick(f, "form_1116"));
+  const paid = explicitMoney(pick(f, "foreign_tax_paid"));
+  const deducted = bool(pick(f, "foreign_tax_deducted_sch_a"));
+  const carry = bool(pick(f, "ftc_carryover"));
+  const material = paid != null && paid > 0;
+  const evidence = {
+    form_1116: form1116,
+    foreign_tax_paid: paid,
+    foreign_tax_deducted_sch_a: deducted,
+    ftc_carryover: carry,
+  };
+  if (material || (form1116 && carry) || (form1116 && deducted)) {
+    return row("N27", "Medium", "tray-skim", "Foreign tax paid, a credit-versus-deduction gap, or a section 904 carryover is on the packet", evidence);
+  }
+  return row("N27", "silent", null, form1116 || carry || deducted
+    ? "Foreign tax signal is incomplete"
+    : "No foreign tax amount and no Form 1116", evidence);
+}
+
+function scoreForeignAccount(f) {
+  const yes = bool(pick(f, "schedule_b_foreign_yes"));
+  const thresholdMet = bool(pick(f, "form_8938_threshold_met"));
+  const accountValue = explicitMoney(pick(f, "foreign_account_value_explicit"));
+  const threshold = thresholdMet || (accountValue != null && accountValue > 0);
+  const incomplete8938 = bool(pick(f, "form_8938_incomplete"));
+  const incomplete3520 = bool(pick(f, "form_3520_incomplete"));
+  const incomplete8621 = bool(pick(f, "form_8621_incomplete"));
+  const incomplete = incomplete8938 || incomplete3520 || incomplete8621;
+  const pfic = bool(pick(f, "pfic_or_foreign_trust_marker"));
+  const form3520 = bool(pick(f, "form_3520"));
+  const form8621 = bool(pick(f, "form_8621"));
+  const form8938 = bool(pick(f, "form_8938"));
+  const fbar = bool(pick(f, "fbar_signal"));
+  const matchingComplete = (form8621 && !incomplete8621) || (form3520 && !incomplete3520);
+  const pficGate = pfic && !matchingComplete;
+  const evidence = {
+    schedule_b_foreign_yes: yes,
+    form_8938_threshold_met: thresholdMet,
+    foreign_account_value_explicit: accountValue,
+    form_8938: form8938,
+    form_8938_incomplete: incomplete8938,
+    form_3520: form3520,
+    form_3520_incomplete: incomplete3520,
+    form_8621: form8621,
+    form_8621_incomplete: incomplete8621,
+    pfic_or_foreign_trust_marker: pfic,
+    fbar_signal: fbar,
+  };
+  if (yes && (threshold || incomplete || pficGate)) {
+    return row(
+      "N28",
+      "High",
+      "compliance-flag",
+      "Schedule B Part III Yes plus a threshold, an incomplete foreign form, or a PFIC or foreign-trust gate. FinCEN 114 is not Form 8938",
+      evidence,
+      "compliance-only",
+    );
+  }
+  let why = "No foreign-account signal";
+  if (yes) {
+    why = "Schedule B Part III Yes alone stays silent. Docs needed: a Form 8938 threshold worksheet and FinCEN 114 if the FBAR threshold is met. FinCEN 114 is not Form 8938";
+  } else if (fbar || threshold || incomplete || pfic || form8938 || form3520 || form8621) {
+    why = "Foreign-account markers without Schedule B Part III Yes stay silent. FinCEN 114 is not Form 8938";
+  }
+  return row("N28", "silent", null, why, evidence);
+}
+
+function scoreSafeHarbor(f) {
+  const agi = explicitMoney(f.prior_year_agi);
+  const priorTax = explicitMoney(f.prior_year_total_tax);
+  const withholding = explicitMoney(f.withholding);
+  const estimates = explicitMoney(f.estimates_paid);
+  const esContext = withholding != null || (estimates != null && estimates > 0);
+  const current = (estimates != null ? estimates : 0) + (withholding != null ? withholding : 0);
+  const evidence = {
+    prior_year_agi: agi,
+    prior_year_total_tax: priorTax,
+    estimates_paid: estimates,
+    withholding,
+    current_es_plus_wh: esContext ? current : null,
+    form_2210_underpay: bool(f.form_2210_underpay),
+    harbor: null,
+  };
+  const pathPReason = "Path P alone stays silent. Docs needed: a current-year estimate plan or a Path R packet with prior-year lookback. Same-year payments are not this forward harbor";
+  if (f.packet_path === "P") {
+    return row("N29", "silent", null, pathPReason, evidence);
+  }
+  if (agi == null || priorTax == null || !(priorTax > 0)) {
+    const pathPBag = explicitMoney(f.py_agi) != null || explicitMoney(f.py_total_tax) != null;
+    return row("N29", "silent", null, pathPBag ? pathPReason : "Prior-year AGI or total tax is missing", evidence);
+  }
+  if (bool(f.form_2210_underpay)) {
+    return row("N29", "silent", null, "Type 4 already flags this tax year, so the forward harbor stays silent", evidence);
+  }
+  if (!esContext) {
+    return row("N29", "silent", null, "Current-year estimates or withholding are not on the packet", evidence);
+  }
+  const highAgi = agi > N29_HARBOR.agiThreshold;
+  const below = highAgi
+    ? current * N29_HARBOR.highAgiDenominator < priorTax * N29_HARBOR.highAgiNumerator
+    : current < priorTax;
+  evidence.harbor = highAgi
+    ? (priorTax * N29_HARBOR.highAgiNumerator) / N29_HARBOR.highAgiDenominator
+    : priorTax;
+  evidence.high_agi_multiple = highAgi;
+  if (below) {
+    return row("N29", "Medium", "tray-skim", "Current estimates plus withholding sit below the section 6654(d) harbor. This check is never must-review", evidence);
+  }
+  return row("N29", "silent", null, "Current estimates plus withholding meet the section 6654(d) harbor", evidence);
+}
+
+function scorePartnershipExit(f) {
+  const liquidating = bool(pick(f, "k1_liquidating"));
+  const disposition = bool(pick(f, "passthrough_interest_disposition"));
+  const finalReturn = bool(pick(f, "form_1065_final"));
+  const hot = bool(pick(f, "section_751_statement"));
+  const ordinary = bool(pick(f, "k1_partnership"));
+  const exit = liquidating || disposition || finalReturn;
+  const support = hot || finalReturn;
+  const evidence = {
+    k1_partnership: ordinary,
+    k1_liquidating: liquidating,
+    passthrough_interest_disposition: disposition,
+    section_751_statement: hot,
+    form_1065_final: finalReturn,
+  };
+  if (exit && support) {
+    return row("N30", "High", "second-eye", "Partnership exit with a section 751 statement or a final Form 1065. The desk does not choose the section 736 bucket", evidence);
+  }
+  return row("N30", "silent", null, ordinary && !exit
+    ? "Ordinary K-1 income stays silent"
+    : "Partnership disposition and a section 751 or final-return signal are not both present", evidence);
+}
+
+function scoreBackdoorRoth(f) {
+  const magi = explicitMoney(pick(f, "magi"));
+  const form8606 = bool(pick(f, "form_8606"));
+  const nondeductible = bool(pick(f, "nondeductible_ira"));
+  const box12 = bool(pick(f, "w2_box12_aftertax_or_roth"));
+  const plan = bool(pick(f, "plan_doc_mega_backdoor"));
+  const evidence = {
+    magi,
+    form_8606: form8606,
+    nondeductible_ira: nondeductible,
+    w2_box12_aftertax_or_roth: box12,
+    plan_doc_mega_backdoor: plan,
+  };
+  if (magi != null && (form8606 || nondeductible) && (box12 || plan)) {
+    return row("N31", "Medium", "tray-skim", "MAGI, a nondeductible IRA signal, and a plan or W-2 after-tax signal are all present", evidence);
+  }
+  return row("N31", "silent", null, "MAGI, Form 8606 or a nondeductible IRA, and a plan or W-2 after-tax signal are not all present", evidence);
+}
+
+function scoreStatePte(f) {
+  const standard = bool(f.standard_deduction);
+  const salt = bool(f.salt_sch_a_capped);
+  const pte = bool(f.k1_partnership) || bool(f.s_corp);
+  const state = typeof f.state_code === "string" && /^[A-Z]{2}$/.test(f.state_code) ? f.state_code : null;
+  const election = bool(f.state_pte_election_form);
+  const evidence = {
+    standard_deduction: standard,
+    salt_sch_a_capped: salt,
+    k1_partnership: bool(f.k1_partnership),
+    s_corp: bool(f.s_corp),
+    state_code: state,
+    state_pte_election_form: election,
+  };
+  const pathPSignal = bool(f.py_k1_partnership)
+    || bool(f.py_standard_deduction)
+    || bool(f.py_salt_sch_a_capped)
+    || typeof f.py_state_code === "string";
+  if (f.packet_path === "P") {
+    return row("N32", "silent", null, pathPSignal
+      ? "Path P is look-forward only. Docs needed: the current-year state PTE or BAIT election. A missing election on the filed prior year is closed history"
+      : "No pass-through income or state identifier", evidence);
+  }
+  if (!state) return row("N32", "silent", null, "No state identifier", evidence);
+  if (!pte) return row("N32", "silent", null, "No pass-through income", evidence);
+  if (!(standard || salt)) {
+    return row("N32", "silent", null, "Standard deduction or a capped state-and-local line is not on the packet", evidence);
+  }
+  if (election) return row("N32", "silent", null, "State PTE or BAIT election form is already in the packet", evidence);
+  return row("N32", "Medium", "tray-skim", "Pass-through income with a standard deduction or capped state-and-local line, and the state PTE or BAIT election form is missing or incomplete", evidence);
+}
+
+function scoreNiitDisposition(f) {
+  const magi = explicitMoney(pick(f, "magi"));
+  const status = pick(f, "filing_status");
+  const floor = niitFloor(status);
+  const over = magi != null && floor != null && magi > floor;
+  const schD = bool(pick(f, "form_4797_or_sch_d_disposition"));
+  const pte = bool(pick(f, "passthrough_interest_disposition"));
+  const prop = bool(pick(f, "prop_reg_1411_7_position"));
+  const computed = bool(pick(f, "form_8960"));
+  const evidence = {
+    magi,
+    filing_status: typeof status === "string" ? status : null,
+    magi_floor: floor,
+    form_8960: computed,
+    form_4797_or_sch_d_disposition: schD,
+    passthrough_interest_disposition: pte,
+    prop_reg_1411_7_position: prop,
+  };
+  if (!over) {
+    return row("N34", "silent", null, floor == null
+      ? "Filing status or MAGI is missing, so the section 1411 floor is not applied"
+      : "MAGI is not over the section 1411 threshold, or there is no MAGI figure", evidence);
+  }
+  if (pte || (schD && !computed) || (schD && prop)) {
+    return row("N34", "Medium", "tray-skim", "A disposition or look-through gap is over the section 1411 threshold. Prop. Reg. section 1.1411-7 is proposed", evidence);
+  }
+  if (computed) {
+    return row("N34", "silent", null, "Form 8960 already computes NIIT and there is no disposition or look-through gap", evidence);
+  }
+  return row("N34", "silent", null, "No disposition or look-through gap", evidence);
 }
 
 export function scoreAll(fields) {
@@ -635,6 +902,14 @@ export function scoreAll(fields) {
       large_re_gain_no_1031: false,
     }));
   }
+
+  out.push(scoreForeignTaxCredit(f));
+  out.push(scoreForeignAccount(f));
+  out.push(scoreSafeHarbor(f));
+  out.push(scorePartnershipExit(f));
+  out.push(scoreBackdoorRoth(f));
+  out.push(scoreStatePte(f));
+  out.push(scoreNiitDisposition(f));
 
   return out;
 }

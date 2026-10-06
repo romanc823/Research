@@ -1,0 +1,36 @@
+{
+  "id": "pathp-fire-n28-foreign-account",
+  "anon": true,
+  "label": "Prior-year Schedule B Yes — incomplete Form 8938",
+  "group": "high",
+  "filer_ref": "FILER-902",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule B",
+    "Form 8938"
+  ],
+  "scenario": "Schedule B Part III Yes and Form 8938 in the packet but incomplete. FinCEN 114 is separate from Form 8938.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_schedule_b_foreign_yes": true,
+    "py_form_8938": true,
+    "py_form_8938_incomplete": true,
+    "py_form_8938_threshold_met": true,
+    "py_form_3520": false,
+    "py_form_8621": false,
+    "py_fbar_signal": false,
+    "py_agi": 210000
+  },
+  "expected": {
+    "high": [
+      "N28"
+    ],
+    "medium": [],
+    "compliance_high": [
+      "N28"
+    ]
+  }
+}

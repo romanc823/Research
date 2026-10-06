@@ -1,0 +1,36 @@
+{
+  "id": "pathr-medium-n29-harbor-shortfall",
+  "anon": true,
+  "label": "Forward harbor — estimates below 110 percent",
+  "group": "medium",
+  "filer_ref": "FILER-911",
+  "tax_year": 2025,
+  "path": "R",
+  "packet_kind": "research_packet",
+  "forms_in_packet": [
+    "1040",
+    "ES plan worksheet"
+  ],
+  "scenario": "Prior-year AGI is over the statute threshold, so the harbor is 110 percent of prior-year total tax. Current estimates plus withholding sit below that harbor. Form 2210 is not on this year.",
+  "fields": {
+    "prior_year_agi": 275000,
+    "prior_year_total_tax": 48000,
+    "estimates_paid": 20000,
+    "withholding": 15000,
+    "form_2210_underpay": false,
+    "total_tax": 0
+  },
+  "harbor_calc": {
+    "rule": "prior_year_agi > 150000 -> 1.10 x prior_year_total_tax",
+    "harbor": 52800,
+    "current_es_plus_wh": 35000,
+    "below_harbor": true
+  },
+  "expected": {
+    "high": [],
+    "medium": [
+      "N29"
+    ],
+    "compliance_high": []
+  }
+}

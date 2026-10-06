@@ -1,0 +1,34 @@
+{
+  "id": "pathp-fire-n27-ftc",
+  "anon": true,
+  "label": "Prior-year Form 1116 — foreign tax and carryover",
+  "group": "medium",
+  "filer_ref": "FILER-901",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule A",
+    "Schedule 3",
+    "Form 1116"
+  ],
+  "scenario": "Prior-year return shows Form 1116 with foreign tax paid and a carryover signal.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_form_1116": true,
+    "py_foreign_tax_paid": 4200,
+    "py_ftc_carryover": true,
+    "py_foreign_tax_deducted_sch_a": false,
+    "py_standard_deduction": false,
+    "py_agi": 185000,
+    "py_total_tax": 32000
+  },
+  "expected": {
+    "high": [],
+    "medium": [
+      "N27"
+    ],
+    "compliance_high": []
+  }
+}
