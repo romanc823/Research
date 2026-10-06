@@ -28,6 +28,42 @@ html, body {
   color: var(--ink);
 }
 
+/*
+  Planning Tools embeds this desk in an iframe. 100vh is the browser
+  viewport, not the tool slot, so a viewport min-height overflows the
+  slot and the host clips the desk into a strip. Fill the iframe instead
+  and scroll the rail and stage inside it.
+*/
+html.planning-embed,
+html.planning-embed body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.planning-embed body {
+  display: flex;
+  flex-direction: column;
+}
+
+html.planning-embed .mast,
+html.planning-embed .desk-banner {
+  flex: none;
+}
+
+html.planning-embed .shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+}
+
+html.planning-embed .rail,
+html.planning-embed .stage {
+  min-height: 0;
+  overflow: auto;
+}
+
 body {
   font-family: var(--sans);
   font-size: 15px;
