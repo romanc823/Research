@@ -10,7 +10,14 @@ const PASS_HINT = {
   "one-pass": "One-pass · about 3 min",
   "second-eye": "Second-eye · about 5 min",
   "tray-skim": "Tray skim · about 2 min",
+  "compliance-flag": "Compliance flag",
 };
+
+function laneName(lane) {
+  if (lane === "must-review") return "Must-review";
+  if (lane === "compliance-only") return "Compliance flag";
+  return "Optional tray";
+}
 
 const GROUP_LABEL = {
   high: "High hits",
@@ -296,8 +303,9 @@ function renderStage() {
     ? visible.map((card) => {
       const key = `${card.band}:${card.typeId}`;
       const active = detail && key === `${detail.band}:${detail.typeId}` ? " is-active" : "";
+      const bandLabel = card.lane === "compliance-only" ? "Compliance" : card.band;
       return `<button type="button" class="card band-${card.band === "High" ? "high" : "medium"}${active}" data-card="${esc(key)}">
-        <span class="card-kicker">Type ${esc(card.typeId)} · ${esc(card.band)}</span>
+        <span class="card-kicker">Type ${esc(card.typeId)} · ${esc(bandLabel)}</span>
         <span class="card-name">${esc(card.name)}</span>
         <span class="card-pass">${esc(PASS_HINT[card.passTag] || card.passTag)}</span>
         <span class="card-copy">${esc(card.copy || card.error || "")}</span>
@@ -313,7 +321,7 @@ function renderStage() {
       <p class="card-kicker">Type ${esc(detail.typeId)}</p>
       <h3>${esc(detail.name)}</h3>
       <dl class="meta">
-        <div><dt>Lane</dt><dd>${esc(detail.lane === "must-review" ? "Must-review" : "Optional tray")}</dd></div>
+        <div><dt>Lane</dt><dd>${esc(laneName(detail.lane))}</dd></div>
         <div><dt>Cite</dt><dd>${esc(detail.cite || "—")}</dd></div>
         <div><dt>Pass tag</dt><dd>${esc(PASS_HINT[detail.passTag] || detail.passTag || "—")}</dd></div>
       </dl>

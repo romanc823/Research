@@ -1,0 +1,31 @@
+{
+  "id": "pathr-high-n30-751-exit",
+  "anon": true,
+  "label": "Partnership exit — section 751 statement",
+  "group": "high",
+  "filer_ref": "FILER-910",
+  "tax_year": 2025,
+  "path": "R",
+  "packet_kind": "research_packet",
+  "forms_in_packet": [
+    "1040",
+    "Schedule D",
+    "Form 1065 K-1",
+    "Section 751 statement"
+  ],
+  "scenario": "Partnership interest disposition with a section 751 hot-assets statement. N30 is must-review. Ordinary K-1 income alone would stay silent.",
+  "fields": {
+    "k1_liquidating": true,
+    "section_751_statement": true,
+    "form_1065_final": false,
+    "passthrough_interest_disposition": true,
+    "k1_partnership": true
+  },
+  "expected": {
+    "high": [
+      "N30"
+    ],
+    "medium": [],
+    "compliance_high": []
+  }
+}

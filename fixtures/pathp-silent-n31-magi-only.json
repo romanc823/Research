@@ -1,0 +1,28 @@
+{
+  "id": "pathp-silent-n31-magi-only",
+  "anon": true,
+  "label": "Prior-year MAGI — no Form 8606 or plan signal",
+  "group": "silent",
+  "filer_ref": "FILER-908",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040"
+  ],
+  "scenario": "MAGI is present. Form 8606 and the plan or W-2 after-tax signal are not. N31 stays silent.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_magi": 240000,
+    "py_agi": 235000,
+    "py_form_8606": false,
+    "py_nondeductible_ira": false,
+    "py_w2_box12_aftertax_or_roth": false,
+    "py_plan_doc_mega_backdoor": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "pathp-silent-n28-no-foreign-yes",
+  "anon": true,
+  "label": "Prior-year Schedule B — foreign questions No",
+  "group": "silent",
+  "filer_ref": "FILER-906",
+  "tax_year": 2024,
+  "path": "P",
+  "packet_kind": "prior_year_personal_1040",
+  "forms_in_packet": [
+    "1040",
+    "Schedule B"
+  ],
+  "scenario": "Schedule B foreign questions are No. N28 stays silent.",
+  "fields": {
+    "py_tax_year": 2024,
+    "py_schedule_b_foreign_yes": false,
+    "py_form_8938": false,
+    "py_form_3520": false,
+    "py_form_8621": false
+  },
+  "expected": {
+    "high": [],
+    "medium": [],
+    "compliance_high": []
+  }
+}

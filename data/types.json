@@ -2,7 +2,8 @@
   "pass_tags": {
     "one-pass": "Math or document High. Target review about 3 minutes.",
     "second-eye": "Judgment High. Target review about 5 minutes.",
-    "tray-skim": "Medium optional tray. Target skim about 2 minutes."
+    "tray-skim": "Medium optional tray. Target skim about 2 minutes.",
+    "compliance-flag": "Compliance flag. Filing or reporting gap. Not a planning card."
   },
   "types": [
     {
@@ -244,6 +245,62 @@
       "pass_tag": "tray-skim",
       "cite": "§1031 · §453",
       "trigger_summary": "Form 6252 or Form 8824, or a large Schedule D real-estate gain with neither form."
+    },
+    {
+      "id": "N27",
+      "name": "Foreign tax credit / §904 / deduct-vs-credit",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§901 · §904 · §275(a)(4)",
+      "trigger_summary": "Foreign tax paid, Form 1116 with a carryover, or both a credit form and a Schedule A foreign-tax deduction. Silent without a foreign-tax amount and without that pair."
+    },
+    {
+      "id": "N28",
+      "name": "Foreign account FBAR–8938–3520–8621",
+      "lane": "compliance-only",
+      "pass_tag": "compliance-flag",
+      "cite": "31 U.S.C. §5314 · §6038D · §6048 · §1291",
+      "trigger_summary": "Compliance flag only when Schedule B Part III is Yes and a Form 8938 threshold, an incomplete Form 8938, 3520, or 8621, or a PFIC or foreign-trust marker is on the packet. Yes alone stays silent. FinCEN Form 114 is not Form 8938."
+    },
+    {
+      "id": "N29",
+      "name": "Safe-harbor / ES plan after high-AGI year",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§6654(d)(1)(B)–(C)",
+      "trigger_summary": "Look-forward only. Medium when prior-year AGI and total tax are on the packet and current estimates plus withholding sit strictly below the harbor: 110% of prior-year tax when AGI is over $150,000, otherwise 100%. Path P alone stays silent. Silent when type 4 fires on the same year. Never must-review."
+    },
+    {
+      "id": "N30",
+      "name": "Partnership exit §736/741/751/708",
+      "lane": "must-review",
+      "pass_tag": "second-eye",
+      "cite": "§736 · §741 · §751 · §708(b)",
+      "trigger_summary": "Partnership interest disposition or liquidating distribution, plus a section 751 statement or a final Form 1065. Ordinary K-1 income stays silent. No optional-tray fallback. The desk does not choose the section 736 bucket."
+    },
+    {
+      "id": "N31",
+      "name": "Backdoor Roth / mega backdoor",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§408A · §219 · §401(a) · §402",
+      "trigger_summary": "Medium only when MAGI, Form 8606 or a nondeductible IRA signal, and a plan or Form W-2 after-tax signal are all present. Any one missing stays silent."
+    },
+    {
+      "id": "N32",
+      "name": "State PTE / BAIT election",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "State PTE / BAIT statute · §164(b)(6) inference",
+      "trigger_summary": "Path R Medium when a standard deduction or a capped state-and-local line, pass-through income, and a state code are on the packet and the state PTE or BAIT election form is missing or incomplete. Path P is look-forward only and stays silent. Silent without pass-through income or a state code."
+    },
+    {
+      "id": "N34",
+      "name": "NIIT §1411 on disposition",
+      "lane": "optional-tray",
+      "pass_tag": "tray-skim",
+      "cite": "§1411 · Treas. Reg. §1.1411-1 · Prop. Reg. §1.1411-7 (proposed)",
+      "trigger_summary": "Medium on a disposition or passthrough look-through gap when MAGI is over $200,000 unmarried or $250,000 MFJ ($125,000 MFS). Silent when Form 8960 already computes NIIT and there is no disposition or look-through gap. Prop. Reg. §1.1411-7 stays labeled proposed."
     }
   ]
 }

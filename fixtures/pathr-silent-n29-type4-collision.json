@@ -1,0 +1,30 @@
+{
+  "id": "pathr-silent-n29-type4-collision",
+  "anon": true,
+  "label": "Form 2210 this year — forward harbor stays silent",
+  "group": "high",
+  "filer_ref": "FILER-912",
+  "tax_year": 2025,
+  "path": "R",
+  "packet_kind": "research_packet",
+  "forms_in_packet": [
+    "1040",
+    "Form 2210"
+  ],
+  "scenario": "Estimates plus withholding sit below the harbor, and Form 2210 underpayment math is on the same tax year. Type 4 flags that year. N29 stays silent.",
+  "fields": {
+    "prior_year_agi": 275000,
+    "prior_year_total_tax": 48000,
+    "estimates_paid": 10000,
+    "withholding": 10000,
+    "form_2210_underpay": true,
+    "total_tax": 40000
+  },
+  "expected": {
+    "high": [
+      "4"
+    ],
+    "medium": [],
+    "compliance_high": []
+  }
+}
