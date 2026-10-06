@@ -1,8 +1,13 @@
 import { isPrivateDesk } from "./desk-mode.js";
+import { fitEmbeddedFrame } from "./embed-frame.js";
 import { evaluateFixture, matchExpectation } from "./evaluate.js";
 import { ingestDocument } from "./ingest.js";
 import { parseFixtureText } from "./intake.js";
 import { buildReport, reportJson, reportMarkdown } from "./report.js";
+
+fitEmbeddedFrame();
+window.addEventListener("resize", fitEmbeddedFrame);
+requestAnimationFrame(() => fitEmbeddedFrame());
 
 const privateDesk = isPrivateDesk(window.location.search);
 
@@ -479,6 +484,7 @@ async function boot() {
     renderStatus();
     const first = state.manifest.find((item) => item.group === "high") || state.manifest[0];
     if (first) selectFixture(first.id);
+    fitEmbeddedFrame();
   } catch (error) {
     rail.innerHTML = "";
     stage.innerHTML = `<div class="boot-error">

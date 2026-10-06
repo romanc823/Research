@@ -4,6 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Intentional Accounting — Tax Planning Research</title>
+  <script>
+    (function () {
+      var embedded = false;
+      try {
+        var params = new URLSearchParams(location.search);
+        embedded = params.get("embed") === "planning" || window.parent !== window;
+      } catch (err) {
+        embedded = true;
+      }
+      if (embedded) document.documentElement.classList.add("planning-embed");
+    })();
+  </script>
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
